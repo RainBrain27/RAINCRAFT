@@ -190,7 +190,7 @@ void gl_main::loadObjects()
     int b=100;
     for(int i=-b/2;i<b/2;i++){
         for(int j=-b/2;j<b/2;j++){
-            for(int k=0;k<1;k++){
+            for(int k=0;k<2;k++){
                 objects.push_back(baseobject(2,2,0,2,glm::vec3(i*1.0,k*1.0,j*1.0)));
             }
         }
@@ -203,7 +203,7 @@ void gl_main::paint()
 
     // Clear the screen
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
+cm
     computeMatricesFromInputs();
 
     glm::mat4 ProjectionMatrix = getProjectionMatrix();
@@ -338,9 +338,9 @@ void gl_main::clean()
     for(size_t i=0;i<Textures.size();i++){
         glDeleteTextures(1, &Textures[i]);
     }
-    for(size_t i=0;i<shapes.size();i++){
+    /*for(size_t i=0;i<shapes.size();i++){
         shapes[i].~shape();
-    }
+    }*/
     glDeleteVertexArrays(1, &VertexArrayID);
 
     // Close OpenGL window and terminate GLFW
