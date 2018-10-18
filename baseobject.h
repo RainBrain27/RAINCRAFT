@@ -8,7 +8,6 @@
 class baseobject
 {
 public:
-    baseobject(size_t shaID, size_t texID, size_t program,int NewObjID);
     baseobject(size_t shaID, size_t texID, size_t program,int ObjID,glm::vec3 pos);
     void move(glm::vec3 dirvec);
     void scale(float scale);

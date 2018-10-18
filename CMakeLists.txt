@@ -16,6 +16,8 @@ set(SRC
     gl_main.cpp
     shape.cpp
     baseobject.cpp
+    chunk.cpp
+    chunk_obj.cpp
 
     common/shader.cpp
     common/texture.cpp

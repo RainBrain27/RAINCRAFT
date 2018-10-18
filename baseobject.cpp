@@ -2,16 +2,6 @@
 
 #include <glm/gtc/matrix_transform.hpp>
 
-baseobject::baseobject(size_t shape, size_t texture,size_t program,int NewObjID)
-{
-    ModelMatrix = glm::mat4(1.0);
-    scale_size =1.0f;
-    shapeID=shape;
-    TextureID=texture;
-    programID=program;
-    ObjID=NewObjID;
-}
-
 baseobject::baseobject(size_t shape, size_t texture,size_t program,int NewObjID, glm::vec3 pos)
 {
     ModelMatrix = glm::mat4(1.0);

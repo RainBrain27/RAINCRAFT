@@ -6,6 +6,7 @@
 #include <glm/glm.hpp>
 #include "shape.h"
 #include "baseobject.h"
+#include "chunk_obj.h"
 
 class gl_main
 {
@@ -37,8 +38,12 @@ private:
 private:
 
      std::vector<GLuint> Textures;
-     std::vector<shape> shapes;
-     std::vector<baseobject> objects;
+
+     std::vector<shape*> shapes;
+
+     std::vector<baseobject*> objects;
+     std::vector<chunk_obj*> chunks;
+
      size_t skycubeID;
      glm::vec3 lastCamPos;
 

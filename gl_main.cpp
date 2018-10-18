@@ -24,6 +24,7 @@ using namespace glm;
 #include "objloader.hpp"
 #include "vboindexer.hpp"
 
+#include "chunk.h"
 
 void APIENTRY DebugOutputCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam){
 
@@ -148,19 +149,19 @@ void gl_main::loadIDs()
 void gl_main::create_shapes()
 {
     std::vector<const char *> paths;
-    paths.push_back("objects/suzanne.obj");
-    paths.push_back("objects/rathalos.obj");
-    paths.push_back("objects/cube.obj");
     paths.push_back("objects/skycube.obj");
+    paths.push_back("objects/cube.obj");
+    //paths.push_back("objects/suzanne.obj");
+    //paths.push_back("objects/rathalos.obj");
+
 
 
     //in this order it works ... (?)
     for(size_t i=0;i<paths.size();i++){
-        shapes.push_back(shape());
+        shapes.push_back(new shape(paths[i]));
     }
-    for(size_t i=0;i<paths.size();i++){
-        shapes[i].reinit(paths[i]);
-    }
+    shapes.push_back(new chunk());
+
 
 }
 
@@ -170,31 +171,34 @@ void gl_main::loadTextures()
     Textures.push_back(loadDDS("textures/uvmap.DDS",false));
     Textures.push_back(loadDDS("textures/rathalos1.DDS",false));
     Textures.push_back(loadDDS("textures/crafting_table.DDS",true));
-    Textures.push_back(loadDDS("textures/skycube.DDS",false));
+    Textures.push_back(loadDDS("textures/skycube.DDS",true));
 
 }
 
 void gl_main::loadObjects()
 {
-    objects.push_back(baseobject(3,3,1,3)); //skycube
-    objects[0].scale(256.0);
+    objects.push_back(new baseobject(0,3,1,0,glm::vec3(0,0,0))); //skycube
+    objects[0]->scale(256.0);
     skycubeID=0;
 
-    //wobjects.push_back(baseobject(0,0,0,glm::vec3(0,-10,0,0)));
+    //objects.push_back(new baseobject(0,0,0,0,glm::vec3(0,-10,0)));
 
-    //objects.push_back(baseobject(1,1,0,glm::vec3(0,10,0,1)));
+    //objects.push_back(new baseobject(1,1,0,1,glm::vec3(0,10,0)));
 
-    //objects.push_back(baseobject(2,2,0,glm::vec3(-10,0,0,2)));
+    //objects.push_back(new baseobject(1,2,0,2,glm::vec3(0,0,0)));
 
 
-    int b=100;
-    for(int i=-b/2;i<b/2;i++){
-        for(int j=-b/2;j<b/2;j++){
-            for(int k=0;k<1;k++){
-                objects.push_back(baseobject(2,2,0,2,glm::vec3(i*1.0,k*1.0,j*1.0)));
-            }
-        }
-    }
+
+    chunks.push_back(new chunk_obj(2,0,1,glm::vec3(0,0,0)));
+    chunks.push_back(new chunk_obj(2,0,1,glm::vec3(16,0,0)));
+    chunks.push_back(new chunk_obj(2,0,1,glm::vec3(-16,0,0)));
+    chunks.push_back(new chunk_obj(2,0,1,glm::vec3(0,16,0)));
+    chunks.push_back(new chunk_obj(2,0,1,glm::vec3(0,-16,0)));
+    chunks.push_back(new chunk_obj(2,0,1,glm::vec3(0,0,16)));
+    chunks.push_back(new chunk_obj(2,0,1,glm::vec3(0,0,-16)));
+
+    chunks[0]->get_chunk_shape()->change_block(0,0,0,-1);
+
 
 }
 
@@ -206,19 +210,21 @@ void gl_main::paint()
 
     computeMatricesFromInputs();
 
-    glm::mat4 ProjectionMatrix = getProjectionMatrix();
+    glm::mat4 ProjectionMatrix = getProjectionMatrix(); //evt. schon vorher multipiziren, nicht erst in shadern...
     glm::mat4 ViewMatrix = getViewMatrix();
+
     //ausrichten skycube
-    float scale= objects[skycubeID].get_scale();
-    objects[skycubeID].move(glm::vec3(
+    float scale= objects[skycubeID]->get_scale();
+    objects[skycubeID]->move(glm::vec3(
                                 (getCamPos().x-lastCamPos.x)/scale,
                                 (getCamPos().y-lastCamPos.y)/scale,
                                 (getCamPos().z-lastCamPos.z)/scale
                                 ));
+
     lastCamPos=getCamPos();
 
     glm::mat4 ModelMatrix;
-    glm::vec3 lightPos  = glm::vec3(objects[skycubeID].get_ModelMatrix() * glm::vec4(-11.5f/scale,22.0f/scale,8.5f/scale,1));
+    glm::vec3 lightPos  = glm::vec3(objects[skycubeID]->get_ModelMatrix() * glm::vec4(-11.5f,22.0f,8.5f,1));
 
     size_t TextureID    = 100000;
     size_t shapeID      = 100000;
@@ -229,10 +235,10 @@ void gl_main::paint()
     size_t objects_size=objects.size();
 
     while(i<objects_size){  //!!! watch out , i++ down there
-        if(objID !=objects[i].get_objID()){
-            objID =objects[i].get_objID();
-            if(prog != objects[i].get_programmID()){
-                prog=objects[i].get_programmID();
+        if(objID !=objects[i]->get_objID()){
+            objID =objects[i]->get_objID();
+            if(prog != objects[i]->get_programmID()){
+                prog=objects[i]->get_programmID();
                 glUseProgram(programIDs[prog]);
                 glUniform3f(LightIDs[prog], lightPos.x, lightPos.y, lightPos.z);
                 glUniformMatrix4fv(MatrixIDs[prog], 1, GL_FALSE, &ProjectionMatrix[0][0]);
@@ -243,38 +249,80 @@ void gl_main::paint()
                 shapeID  = 100000;
             }
 
-            if(TextureID != objects[i].get_TextureID()){
-                TextureID=objects[i].get_TextureID();
+            if(TextureID != objects[i]->get_TextureID()){
+                TextureID=objects[i]->get_TextureID();
                 glBindTexture(GL_TEXTURE_2D, Textures[TextureID]);
                 glUniform1i(TextureSamplerIDs[prog], 0);
             }
 
-            if(shapeID !=objects[i].get_shapeID()){
-                shapeID=objects[i].get_shapeID();
+            if(shapeID !=objects[i]->get_shapeID()){
+                shapeID=objects[i]->get_shapeID();
 
                 // 1rst attribute buffer : vertices
-                glBindBuffer(GL_ARRAY_BUFFER, shapes[shapeID].vertexbuffer);
+                glBindBuffer(GL_ARRAY_BUFFER, shapes[shapeID]->get_vertexbuffer());
                 glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,0,(void*)0);
                 // attribute// size// type// normalized?// stride// array buffer offset
 
                 // 2nd attribute buffer : UVs
-                glBindBuffer(GL_ARRAY_BUFFER, shapes[shapeID].uvbuffer);
+                glBindBuffer(GL_ARRAY_BUFFER, shapes[shapeID]->get_uvbuffer());
                 glVertexAttribPointer(1,2,GL_FLOAT,GL_FALSE,0,(void*)0);
                 // attribute// size// type// normalized?// stride// array buffer offset
 
                 // 3rd attribute buffer : normals
-                glBindBuffer(GL_ARRAY_BUFFER, shapes[shapeID].normalbuffer);
+                glBindBuffer(GL_ARRAY_BUFFER, shapes[shapeID]->get_normalbuffer());
                 glVertexAttribPointer(2,3,GL_FLOAT,GL_FALSE,0,(void*)0);
                 // attribute// size// type// normalized?// stride// array buffer offset
 
 
                 // Index buffer
-                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, shapes[shapeID].elementbuffer);
+                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, shapes[shapeID]->get_elementbuffer());
             }
         }
 
-        glUniformMatrix4fv(ModelMatrixIDs[prog], 1, GL_FALSE, &objects[i].get_ModelMatrix()[0][0]);
-        glDrawElements(GL_TRIANGLES,shapes[shapeID].index_size,GL_UNSIGNED_SHORT,0);//(void*)0);
+        glUniformMatrix4fv(ModelMatrixIDs[prog], 1, GL_FALSE, &objects[i]->get_ModelMatrix()[0][0]);
+        glDrawElements(GL_TRIANGLES,shapes[shapeID]->get_index_size(),GL_UNSIGNED_SHORT,0);//(void*)0);
+            // mode // count// type // element array buffer offset
+        i++;
+
+    }
+
+    //draw chunks
+
+    i=0;
+    objects_size=chunks.size();
+    chunk* shape_ptr;
+
+    while(i<objects_size){  //!!! watch out , i++ down there
+        if(prog != chunks[i]->get_programmID()){
+            prog=chunks[i]->get_programmID();
+            glUseProgram(programIDs[prog]);
+            glUniform3f(LightIDs[prog], lightPos.x, lightPos.y, lightPos.z);
+            glUniformMatrix4fv(MatrixIDs[prog], 1, GL_FALSE, &ProjectionMatrix[0][0]);
+            glUniformMatrix4fv(ViewMatrixIDs[prog], 1, GL_FALSE, &ViewMatrix[0][0]);
+            glActiveTexture(GL_TEXTURE0);
+
+            TextureID= 100000; //WARNING if first obj uses shader 100000-> Bug !!!
+            shapeID  = 100000;
+        }
+
+        if(TextureID != chunks[i]->get_TextureID()){
+            TextureID = chunks[i]->get_TextureID();
+            glBindTexture(GL_TEXTURE_2D, Textures[TextureID]);
+            glUniform1i(TextureSamplerIDs[prog], 0);
+        }
+
+        shape_ptr=chunks[i]->get_chunk_shape();
+
+        glBindBuffer(GL_ARRAY_BUFFER, shape_ptr->get_vertexbuffer());
+        glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,0,(void*)0);
+        glBindBuffer(GL_ARRAY_BUFFER, shape_ptr->get_uvbuffer());
+        glVertexAttribPointer(1,2,GL_FLOAT,GL_FALSE,0,(void*)0);
+        glBindBuffer(GL_ARRAY_BUFFER, shape_ptr->get_normalbuffer());
+        glVertexAttribPointer(2,3,GL_FLOAT,GL_FALSE,0,(void*)0);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, shape_ptr->get_elementbuffer());
+
+        glUniformMatrix4fv(ModelMatrixIDs[prog], 1, GL_FALSE, &chunks[i]->get_ModelMatrix()[0][0]);
+        glDrawElements(GL_TRIANGLES,shape_ptr->get_index_size(),GL_UNSIGNED_SHORT,0);//(void*)0);
             // mode // count// type // element array buffer offset
         i++;
 
@@ -330,18 +378,16 @@ void gl_main::measure_speed()
 void gl_main::clean()
 {
     // Cleanup VBO and shader
-    //rathalos.~shape();
-    //suzanne.~shape();
+
+    glDeleteVertexArrays(1, &VertexArrayID);
+
     for(size_t i=0;i<programIDs.size();i++){
         glDeleteProgram(programIDs[i]);
     }
     for(size_t i=0;i<Textures.size();i++){
         glDeleteTextures(1, &Textures[i]);
     }
-    for(size_t i=0;i<shapes.size();i++){
-        shapes[i].~shape();
-    }
-    glDeleteVertexArrays(1, &VertexArrayID);
+    //destruktor wegen new???
 
     // Close OpenGL window and terminate GLFW
     glfwTerminate();

@@ -10,7 +10,7 @@
 
 // Returns true iif v1 can be considered equal to v2
 bool is_near(float v1, float v2){
-	return fabs( v1-v2 ) < 0.01f;
+    return fabs( v1-v2 ) < 0.001f;
 }
 
 // Searches through all already-exported vertices

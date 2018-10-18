@@ -13,18 +13,17 @@ public:
     shape(){}
     shape(const char * path);
     ~shape();
-    void reinit(const char * path);
     void init_buffers();
     GLuint get_vertexbuffer(){return vertexbuffer;}
     GLuint get_uvbuffer(){return uvbuffer;}
     GLuint get_normalbuffer(){return normalbuffer;}
     GLuint get_elementbuffer(){return elementbuffer;}
-    std::vector<unsigned short> get_indices(){return get_indices();}
-    std::vector<glm::vec3> get_indexed_vertices(){return get_indexed_vertices();}
-    std::vector<glm::vec2> get_indexed_uvs(){return get_indexed_uvs();}
-    std::vector<glm::vec3> get_indexed_normals(){return get_indexed_normals();}
+    std::vector<unsigned short> get_indices(){return indices;}
+    std::vector<glm::vec3> get_indexed_vertices(){return indexed_vertices;}
+    std::vector<glm::vec2> get_indexed_uvs(){return indexed_uvs;}
+    std::vector<glm::vec3> get_indexed_normals(){return indexed_normals;}
 
-    size_t get_index_size(){return index_size;}
+    GLint get_index_size(){return index_size;}
 
 public:
     GLint index_size;
