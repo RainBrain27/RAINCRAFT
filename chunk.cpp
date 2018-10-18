@@ -80,19 +80,15 @@ void chunk::fill_buffers()
 
 void chunk::add_quad(int x, int y, int z, int side)
 {
-    printf("FIX 27 %i %i %i %i\n",x,y,z,side);
 
     if(Quad_list[x][y][z][side]==-1 and Block_list[x][y][z]==-1){
-        //printf("fehlaufruf draw quads");
     }
     else if(Quad_list[x][y][z][side]==-1 and Block_list[x][y][z]!=-1){
-        printf("    quad == != %i",side);
         int space=get_space();
         write_quad(x,y,z,side,space);
         Quad_list[x][y][z][side]=space;
     }
     else if(Quad_list[x][y][z][side]!=-1 and Block_list[x][y][z]!=-1){
-        printf("    quad != != %i",side);
         int space=Quad_list[x][y][z][side];
         write_quad(x,y,z,side,space);
         Quad_list[x][y][z][side]=space;
@@ -108,7 +104,6 @@ void chunk::add_quad(int x, int y, int z, int side)
 
 void chunk::write_quad(int x, int y, int z, int side, int space)
 {
-    printf("FIX7 %i %i \n",space,side);
 
     glm::vec3 pos(x-7.5,y-7.5,z-7.5);
     std::vector<glm::vec3> temp_v;
@@ -180,7 +175,6 @@ int chunk::get_space()
 {
     if(not free_stack.empty()){
         int space=free_stack.top();
-        printf("stack_top= %i \n",space);
         free_stack.pop();
         return space;
     }
