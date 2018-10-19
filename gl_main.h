@@ -42,7 +42,7 @@ private:
      std::vector<shape*> shapes;
 
      std::vector<baseobject*> objects;
-     std::vector<chunk_obj*> chunks;
+     std::vector< chunk_obj* > chunks;
 
      size_t skycubeID;
      glm::vec3 lastCamPos;

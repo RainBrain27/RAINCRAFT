@@ -177,6 +177,19 @@ void gl_main::loadTextures()
 
 void gl_main::loadObjects()
 {
+    std::vector<glm::vec3> cube_vertices;
+    std::vector<glm::vec2> cube_uvs;
+    std::vector<glm::vec3> cube_normals;
+
+    std::vector<unsigned short> cube_indices;
+    std::vector<glm::vec3> cube_indexed_vertices;
+    std::vector<glm::vec2> cube_indexed_uvs;
+    std::vector<glm::vec3> cube_indexed_normals;
+
+    loadOBJ("objects/cube.obj", cube_vertices, cube_uvs, cube_normals);
+    indexVBO(cube_vertices, cube_uvs, cube_normals, cube_indices, cube_indexed_vertices, cube_indexed_uvs, cube_indexed_normals);
+
+
     objects.push_back(new baseobject(0,3,1,0,glm::vec3(0,0,0))); //skycube
     objects[0]->scale(256.0);
     skycubeID=0;
@@ -187,17 +200,79 @@ void gl_main::loadObjects()
 
     //objects.push_back(new baseobject(1,2,0,2,glm::vec3(0,0,0)));
 
+    size_t b=18;
+    size_t l=18;
+    size_t h=3;
+
+    float d=b/2-0.5f;
+    float dh=h/2-0.5f +3;
+    float dl=l/2-0.5f;
+
+    for(size_t x=0;x<b;x++){
+        for(size_t y=0;y<h;y++){
+            for(size_t z=0;z<l;z++){
+                chunks.push_back(new chunk_obj(2,  //texture
+                                               0,  //program
+                                               1,  //ObjID (not needed)
+                                               glm::vec3((x-d)*16,(y-dh)*16,(z-dl)*16), //position
+                                               cube_indices,
+                                               cube_indexed_vertices,
+                                               cube_indexed_uvs,
+                                               cube_indexed_normals
+                                               ));
+                //printf("%i \n",x*b*b+y*b+z);
+            }
+        }
+    }
+    for(size_t x=0;x<b;x++){
+        for(size_t y=0;y<h;y++){
+            for(size_t z=0;z<l;z++){
+                if(x>0){
+                    chunks[    x*h*l + y*l + z]->set_neighbor(chunks[(x-1)*h*l + y*l + z],1);
+                    chunks[(x-1)*h*l + y*l + z]->set_neighbor(chunks[    x*h*l + y*l + z],3);
+                }
+                if(y>0){
+                    chunks[x*h*l +     y*l + z]->set_neighbor(chunks[x*h*l + (y-1)*l + z],5);
+                    chunks[x*h*l + (y-1)*l + z]->set_neighbor(chunks[x*h*l + y*l   +   z],4);
+                }
+                if(z>0){
+                    chunks[x*h*l +     y*l + z]->set_neighbor(chunks[x*h*l + y*l + (z-1)],0);
+                    chunks[x*h*l + y*l + (z-1)]->set_neighbor(chunks[x*h*l + y*l +     z],2);
+                }
+            }
+        }
+    }
+
+    for(size_t i=0;i<chunks.size();i++){
+        chunks[i]->refresh_chunk();
+    }
 
 
-    chunks.push_back(new chunk_obj(2,0,1,glm::vec3(0,0,0)));
-    chunks.push_back(new chunk_obj(2,0,1,glm::vec3(16,0,0)));
-    chunks.push_back(new chunk_obj(2,0,1,glm::vec3(-16,0,0)));
-    chunks.push_back(new chunk_obj(2,0,1,glm::vec3(0,16,0)));
-    chunks.push_back(new chunk_obj(2,0,1,glm::vec3(0,-16,0)));
-    chunks.push_back(new chunk_obj(2,0,1,glm::vec3(0,0,16)));
-    chunks.push_back(new chunk_obj(2,0,1,glm::vec3(0,0,-16)));
+    for(size_t i=0;i<b*16;i++){
+        size_t x=42,y=30;
+        chunks[(x/16)*h*l + y/16*l + i/16]->change_block(x%16,y%16,i%16,-1);
+        y=31;
+        chunks[(x/16)*h*l + y/16*l + i/16]->change_block(x%16,y%16,i%16,-1);
+        y=32;
+        chunks[(x/16)*h*l + y/16*l + i/16]->change_block(x%16,y%16,i%16,-1);
+        y=30;x=43;
+        chunks[(x/16)*h*l + y/16*l + i/16]->change_block(x%16,y%16,i%16,-1);
+        y=31;
+        chunks[(x/16)*h*l + y/16*l + i/16]->change_block(x%16,y%16,i%16,-1);
+        y=32;
+        chunks[(x/16)*h*l + y/16*l + i/16]->change_block(x%16,y%16,i%16,-1);
 
-    chunks[0]->get_chunk_shape()->change_block(0,0,0,-1);
+    }
+
+
+    /*
+    printf("\nstart\n");
+    chunks[0]->change_block(1,1,1,-1);
+    printf("\nstart\n");
+    chunks[0]->change_block(1,1,1,1);
+
+    */
+
 
 
 }
@@ -215,11 +290,7 @@ void gl_main::paint()
 
     //ausrichten skycube
     float scale= objects[skycubeID]->get_scale();
-    objects[skycubeID]->move(glm::vec3(
-                                (getCamPos().x-lastCamPos.x)/scale,
-                                (getCamPos().y-lastCamPos.y)/scale,
-                                (getCamPos().z-lastCamPos.z)/scale
-                                ));
+    objects[skycubeID]->move(glm::vec3((getCamPos().x-lastCamPos.x)/scale,(getCamPos().y-lastCamPos.y)/scale,(getCamPos().z-lastCamPos.z)/scale));
 
     lastCamPos=getCamPos();
 
@@ -257,24 +328,12 @@ void gl_main::paint()
 
             if(shapeID !=objects[i]->get_shapeID()){
                 shapeID=objects[i]->get_shapeID();
-
-                // 1rst attribute buffer : vertices
                 glBindBuffer(GL_ARRAY_BUFFER, shapes[shapeID]->get_vertexbuffer());
-                glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,0,(void*)0);
-                // attribute// size// type// normalized?// stride// array buffer offset
-
-                // 2nd attribute buffer : UVs
+                glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,0,0);
                 glBindBuffer(GL_ARRAY_BUFFER, shapes[shapeID]->get_uvbuffer());
-                glVertexAttribPointer(1,2,GL_FLOAT,GL_FALSE,0,(void*)0);
-                // attribute// size// type// normalized?// stride// array buffer offset
-
-                // 3rd attribute buffer : normals
+                glVertexAttribPointer(1,2,GL_FLOAT,GL_FALSE,0,0);
                 glBindBuffer(GL_ARRAY_BUFFER, shapes[shapeID]->get_normalbuffer());
-                glVertexAttribPointer(2,3,GL_FLOAT,GL_FALSE,0,(void*)0);
-                // attribute// size// type// normalized?// stride// array buffer offset
-
-
-                // Index buffer
+                glVertexAttribPointer(2,3,GL_FLOAT,GL_FALSE,0,0);
                 glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, shapes[shapeID]->get_elementbuffer());
             }
         }
@@ -314,11 +373,11 @@ void gl_main::paint()
         shape_ptr=chunks[i]->get_chunk_shape();
 
         glBindBuffer(GL_ARRAY_BUFFER, shape_ptr->get_vertexbuffer());
-        glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,0,(void*)0);
+        glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,0,0);
         glBindBuffer(GL_ARRAY_BUFFER, shape_ptr->get_uvbuffer());
-        glVertexAttribPointer(1,2,GL_FLOAT,GL_FALSE,0,(void*)0);
+        glVertexAttribPointer(1,2,GL_FLOAT,GL_FALSE,0,0);
         glBindBuffer(GL_ARRAY_BUFFER, shape_ptr->get_normalbuffer());
-        glVertexAttribPointer(2,3,GL_FLOAT,GL_FALSE,0,(void*)0);
+        glVertexAttribPointer(2,3,GL_FLOAT,GL_FALSE,0,0);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, shape_ptr->get_elementbuffer());
 
         glUniformMatrix4fv(ModelMatrixIDs[prog], 1, GL_FALSE, &chunks[i]->get_ModelMatrix()[0][0]);
@@ -386,6 +445,13 @@ void gl_main::clean()
     }
     for(size_t i=0;i<Textures.size();i++){
         glDeleteTextures(1, &Textures[i]);
+    }
+
+    for(size_t i=0;i<objects.size();i++){
+        delete(objects[i]);
+    }
+    for(size_t i=0;i<chunks.size();i++){
+        delete(chunks[i]);
     }
     //destruktor wegen new???
 
