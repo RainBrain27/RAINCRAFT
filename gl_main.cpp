@@ -202,7 +202,7 @@ void gl_main::loadObjects()
 
     size_t b=18;
     size_t l=18;
-    size_t h=3;
+    size_t h=4;
 
     float d=b/2-0.5f;
     float dh=h/2-0.5f +3;

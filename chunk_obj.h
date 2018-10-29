@@ -13,7 +13,7 @@ public:
               std::vector<glm::vec2> cube_indexed_uvs,
               std::vector<glm::vec3> cube_indexed_normals);
     chunk* get_chunk_shape(){return &chunk_shape;}
-    void change_block(int x,int y,int z, int ID);
+    void change_block(int x,int y,int z, short ID);
 
     void refresh_chunk();
 
@@ -24,7 +24,7 @@ private:
     chunk* shape_neighbour[6]={0,0,0,0,0,0};
     //z- x- z+ x+ y+ y- Richtung
 
-    int Block_list[16][16][16];
+    short Block_list[16][16][16];
 
     chunk chunk_shape;
 

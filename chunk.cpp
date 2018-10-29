@@ -9,9 +9,6 @@
 
 
 
-
-
-
 chunk::chunk()
 
 {
@@ -24,7 +21,7 @@ chunk::chunk()
 
 
 
-void chunk::change_block(int x, int y, int z, int ID)
+void chunk::change_block(int x, int y, int z, short ID)
 {
     int b=16;
     if(Block_list[x][y][z]!=ID){
@@ -66,7 +63,7 @@ void chunk::init_buffers()
     this->vertex_buffer_size=16*16*8*24;//vektoren //+1 for 1 empty space for clearing//not neccessary
     element_buffer_size=16*16*8*36;//ecken elemente
 
-    index_size=element_buffer_size; //for render
+    //index_size=element_buffer_size; //for render durch (free_short)*6 ersetzt
 
     //FIX:change values in more complex times
 
@@ -104,13 +101,13 @@ void chunk::add_quad(int x, int y, int z, int side)
 {
     if(Block_list[x][y][z]!=-1){
         if(Quad_list[x][y][z][side]==-1){
-                int space=get_space();
+                short space=get_space();
                 write_quad(x,y,z,side,space);
                 Quad_list[x][y][z][side]=space;
             }
 
         else if(Quad_list[x][y][z][side]!=-1){
-            int space = Quad_list[x][y][z][side];
+            short space = Quad_list[x][y][z][side];
             write_quad(x,y,z,side,space);
             Quad_list[x][y][z][side] = space;
         }
@@ -120,15 +117,15 @@ void chunk::add_quad(int x, int y, int z, int side)
 
 void chunk::remove_quad(int x, int y, int z, int side)
 {
-    int space=Quad_list[x][y][z][side];
+    short space=Quad_list[x][y][z][side];
     if(space!=-1){
-        delete_quad(space);
+        //delete_quad(space);
         give_space(space);
         Quad_list[x][y][z][side]=-1;
     }
 }
 
-void chunk::write_quad(int x, int y, int z, int side, int space)
+void chunk::write_quad(int x, int y, int z, int side, short space)
 {
 
     glm::vec3 pos(x-7.5,y-7.5,z-7.5);
@@ -155,12 +152,14 @@ void chunk::write_quad(int x, int y, int z, int side, int space)
     glBufferSubData(GL_ELEMENT_ARRAY_BUFFER,space*6*sizeof(unsigned short),6*sizeof(unsigned short),&temp_e[0]);
 }
 
-void chunk::delete_quad(int space)
+
+/*
+void chunk::delete_quad(short space) //can be removed by seting index_size to other values #free_short * x
 {
     std::vector<unsigned short> O;
     repeat_i(6){
         //O.push_back(16*16*8*24); //aufpassen bei größenveränderung des Buffer
-        O.push_back(1000000000);
+        O.push_back(37000);
     }
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementbuffer);
     glBufferSubData(GL_ELEMENT_ARRAY_BUFFER,space*6* sizeof(unsigned short),6 * sizeof(unsigned short),&O[0]);
@@ -169,6 +168,7 @@ void chunk::delete_quad(int space)
     //OPTIMIZE
     //learn to clear data
 }
+*/
 
 void chunk::clone_alpha_cube(std::vector<unsigned short> cube_indices, std::vector<glm::vec3> cube_indexed_vertices, std::vector<glm::vec2> cube_indexed_uvs, std::vector<glm::vec3> cube_indexed_normals)
 {
@@ -184,11 +184,11 @@ void chunk::clone_alpha_cube(std::vector<unsigned short> cube_indices, std::vect
     }
 }
 
-int chunk::get_space()
+short chunk::get_space()
 {
-    if(not free_stack.empty()){
-        int space=free_stack.top();
-        free_stack.pop();
+    if(free_short < 16*16*8*6){
+        short space=free_short;
+        free_short+=1;
         return space;
     }
     else{
@@ -197,9 +197,30 @@ int chunk::get_space()
     }
 }
 
-void chunk::give_space(int space)
+void chunk::give_space(short space)
 {
-    free_stack.push(space);
+    if(free_short==space+1){
+        free_short-=1;
+    }
+    else{
+        int b=16;
+        for(int x=0;x<b;x++){
+            for(int y=0;y<b;y++){
+                for(int z=0;z<b;z++){                       //ridicules
+                    for(int side=0;side<6;side++){
+                        if(Quad_list[x][y][z][side]==free_short-1){
+                            //delete_quad(free_short-1);
+                            free_short-=1;
+                            Quad_list[x][y][z][side]=space;
+                            write_quad(x,y,z,side,space);
+
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 void chunk::check_block(int x, int y, int z)
@@ -274,8 +295,5 @@ void chunk::init_lists()
         }
     }
 
-    for(int i=0;i<16*16*8*6;i++){ //fur alle quads
-        free_stack.push(i); //WARNING: BUG HERE : funktioniert nicht ohne 12287, sollte aber das selbe sein ###FIXED: IS THERE A SUN-GLAS EMOJY?
-    }
-
+    free_short=0;
 }

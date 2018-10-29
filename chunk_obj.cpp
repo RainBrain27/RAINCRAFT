@@ -34,7 +34,7 @@ chunk_obj::chunk_obj(size_t texture, size_t program, int NewObjID, glm::vec3 pos
 
 void chunk_obj::generate_chunk()
 {
-    int ID=1;
+    short ID=1;
     int b=16;
     for(int x=0;x<b;x++){
         for(int y=0;y<b;y++){
@@ -52,7 +52,7 @@ void chunk_obj::refresh_chunk()
     chunk_shape.check_all_Blocks();
 }
 
-void chunk_obj::change_block(int x, int y, int z, int ID)
+void chunk_obj::change_block(int x, int y, int z, short ID)
 {
     chunk_shape.change_block(x,y,z,ID);
 }

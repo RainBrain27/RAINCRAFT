@@ -10,17 +10,17 @@ class chunk : public shape //16**3 blocke
 public:
     chunk();
 
+    GLint get_index_size(){return (free_short)*6;} //overrides shape funktion
 
-
-    void change_block(int x,int y,int z, int ID);
-    int* get_Block_list(int x,int y,int z){return &Block_list[x][y][z];}
-    void set_Block_list(int x,int y,int z, int ID){Block_list[x][y][z]=ID;}
+    void change_block(int x,int y,int z, short ID);
+    short* get_Block_list(int x,int y,int z){return &Block_list[x][y][z];}
+    void set_Block_list(int x,int y,int z, short ID){Block_list[x][y][z]=ID;}
     void check_all_Blocks(){fill_buffers();}
 
     void set_neighbours(chunk* neighbours[6]){
         this->neighbours=neighbours;
     }
-    void set_Block_list(int Block_list[16][16][16]){
+    void set_Block_list(short Block_list[16][16][16]){
         this->Block_list=Block_list;
     }
 
@@ -45,7 +45,7 @@ protected:
 
 private:
 
-    int (*Block_list)[16][16];
+    short (*Block_list)[16][16];
 
     void init_lists();
 
@@ -54,16 +54,16 @@ private:
 
     int vertex_buffer_size;
     int element_buffer_size;
-    int Quad_list[16][16][16][6];
-    std::stack<int> free_stack;
+    short Quad_list[16][16][16][6];
+    short free_short=0;
 
-    int get_space();
-    void give_space(int space);
+    short get_space();
+    void give_space(short space);
     void check_block(int x,int y,int z);
     void add_quad(int x,int y, int z, int side);   //decide where to write
     void remove_quad(int x,int y, int z, int side);
-    void write_quad(int x,int y, int z, int side,int space); //writes in buffer
-    void delete_quad(int space);
+    void write_quad(int x,int y, int z, int side,short space); //writes in buffer
+    //void delete_quad(short space); not renderin till end of buffer
 
 
 
