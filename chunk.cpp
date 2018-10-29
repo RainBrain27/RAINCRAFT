@@ -27,8 +27,8 @@ chunk::chunk()
 void chunk::change_block(int x, int y, int z, int ID)
 {
     int b=16;
-    if(Block_list[x][y][z]!=ID){
-        Block_list[x][y][z]=ID;
+    if((*Block_list)[x][y][z] != ID){
+        (*Block_list)[x][y][z] = ID;
 
         int dir[6][3]={
         {x  ,y  ,z-1},
@@ -102,7 +102,7 @@ void chunk::fill_buffers()
 
 void chunk::add_quad(int x, int y, int z, int side)
 {
-    if(Block_list[x][y][z]!=-1){
+    if((*Block_list)[x][y][z] != -1){
         if(Quad_list[x][y][z][side]==-1){
                 int space=get_space();
                 write_quad(x,y,z,side,space);
@@ -227,7 +227,7 @@ void chunk::check_block(int x, int y, int z)
         {x,b-1,z}
         };
 
-        if(Block_list[x][y][z]==-1){
+        if((*Block_list)[x][y][z]==-1){
             remove_quad(x,y,z,0);
             remove_quad(x,y,z,1);
             remove_quad(x,y,z,2);
@@ -238,7 +238,7 @@ void chunk::check_block(int x, int y, int z)
         else{
             for(int i=0;i<6;i++){
                 if(dec[i]){ //liegt nicht am entsprechendem rand
-                    if(Block_list[ x+dir[i][0] ][ y+dir[i][1] ][ z+dir[i][2] ] ==-1){
+                    if((*Block_list)[ x+dir[i][0] ][ y+dir[i][1] ][ z+dir[i][2] ] ==-1){
                         add_quad(x,y,z,i);
                     }
                     else{
@@ -247,7 +247,7 @@ void chunk::check_block(int x, int y, int z)
                 }
                 else{
                     if(neighbours[i]!=0){ //nachbarchunk existiert
-                        if(neighbours[i]->Block_list[ ext[i][0] ][ ext[i][1] ][ ext[i][2] ] ==-1){
+                        if((*(neighbours[i]->Block_list))[ ext[i][0] ][ ext[i][1] ][ ext[i][2] ] ==-1){
                             add_quad(x,y,z,i);
                         }
                         else{

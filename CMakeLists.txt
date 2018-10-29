@@ -20,6 +20,7 @@ set(SRC
     baseobject.cpp
     chunk.cpp
     chunk_obj.cpp
+    terrain_generator.cpp
 
     common/shader.cpp
     common/texture.cpp
@@ -33,18 +34,6 @@ add_executable(${PROJECT_NAME} ${SRC})
 
 # Compile external dependencies
 add_subdirectory (external)
-
-include_directories(
-        #external/AntTweakBar-1.16/include/
-        external/glfw-3.1.2/include/
-        external/glm-0.9.7.1/
-        external/glew-1.13.0/include/
-        external/assimp-3.0.1270/include/
-        #external/bullet-2.81-rev2613/src/
-        common/
-        shaders/
-        .
-)
 
 include_directories(
         #external/AntTweakBar-1.16/include/

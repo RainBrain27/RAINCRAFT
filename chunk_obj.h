@@ -11,7 +11,9 @@ public:
               std::vector<unsigned short> cube_indices,
               std::vector<glm::vec3> cube_indexed_vertices,
               std::vector<glm::vec2> cube_indexed_uvs,
-              std::vector<glm::vec3> cube_indexed_normals);
+              std::vector<glm::vec3> cube_indexed_normals,
+              glm::ivec3 coordinates);
+    ~chunk_obj();
     chunk* get_chunk_shape(){return &chunk_shape;}
     void change_block(int x,int y,int z, int ID);
 
@@ -24,12 +26,12 @@ private:
     chunk* shape_neighbour[6]={0,0,0,0,0,0};
     //z- x- z+ x+ y+ y- Richtung
 
-    int Block_list[16][16][16];
+    std::vector< std::vector< std::vector<int> > > Block_list;
 
     chunk chunk_shape;
 
-    void generate_chunk();
-
+    void generate_chunk(glm::ivec3 coord);
+    friend class chunk;
 };
 
 #endif // CHUNK_OBJ_H

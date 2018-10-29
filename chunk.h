@@ -13,14 +13,13 @@ public:
 
 
     void change_block(int x,int y,int z, int ID);
-    int* get_Block_list(int x,int y,int z){return &Block_list[x][y][z];}
-    void set_Block_list(int x,int y,int z, int ID){Block_list[x][y][z]=ID;}
+    int*** get_Block_list(int x,int y,int z){return reinterpret_cast<int ***>(Block_list);}
     void check_all_Blocks(){fill_buffers();}
 
     void set_neighbours(chunk* neighbours[6]){
         this->neighbours=neighbours;
     }
-    void set_Block_list(int Block_list[16][16][16]){
+    void set_Block_list(std::vector< std::vector< std::vector<int> > > *Block_list){
         this->Block_list=Block_list;
     }
 
@@ -45,7 +44,7 @@ protected:
 
 private:
 
-    int (*Block_list)[16][16];
+    std::vector< std::vector< std::vector<int> > > *Block_list;
 
     void init_lists();
 
@@ -65,8 +64,8 @@ private:
     void write_quad(int x,int y, int z, int side,int space); //writes in buffer
     void delete_quad(int space);
 
-
-
+    friend class terrain_generator;
+    friend class chunk_obj;
 };
 
 #endif // CHUNK_H

@@ -25,6 +25,7 @@ using namespace glm;
 #include "vboindexer.hpp"
 
 #include "chunk.h"
+#include "terrain_generator.h"
 
 void APIENTRY DebugOutputCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam){
 
@@ -200,9 +201,9 @@ void gl_main::loadObjects()
 
     //objects.push_back(new baseobject(1,2,0,2,glm::vec3(0,0,0)));
 
-    size_t b=18;
-    size_t l=18;
-    size_t h=3;
+    size_t b=8;
+    size_t l=8;
+    size_t h=2;
 
     float d=b/2-0.5f;
     float dh=h/2-0.5f +3;
@@ -218,7 +219,8 @@ void gl_main::loadObjects()
                                                cube_indices,
                                                cube_indexed_vertices,
                                                cube_indexed_uvs,
-                                               cube_indexed_normals
+                                               cube_indexed_normals,
+                                               glm::ivec3(x,y,z)
                                                ));
                 //printf("%i \n",x*b*b+y*b+z);
             }
@@ -248,7 +250,7 @@ void gl_main::loadObjects()
     }
 
 
-    for(size_t i=0;i<b*16;i++){
+    /*for(size_t i=0;i<b*16;i++){
         size_t x=42,y=30;
         chunks[(x/16)*h*l + y/16*l + i/16]->change_block(x%16,y%16,i%16,-1);
         y=31;
@@ -263,7 +265,7 @@ void gl_main::loadObjects()
         chunks[(x/16)*h*l + y/16*l + i/16]->change_block(x%16,y%16,i%16,-1);
 
     }
-
+     */
 
     /*
     printf("\nstart\n");
