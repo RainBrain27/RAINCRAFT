@@ -15,7 +15,7 @@ public:
     void change_block(int x,int y,int z, short ID);
     short* get_Block_list(int x,int y,int z){return &Block_list[x][y][z];}
     void set_Block_list(int x,int y,int z, short ID){Block_list[x][y][z]=ID;}
-    void check_all_Blocks(){fill_buffers();}
+    void refresh_chunk(){fill_buffers();}
 
     void set_neighbours(chunk* neighbours[6]){
         this->neighbours=neighbours;

@@ -49,7 +49,7 @@ void chunk_obj::generate_chunk()
 
 void chunk_obj::refresh_chunk()
 {
-    chunk_shape.check_all_Blocks();
+    chunk_shape.refresh_chunk();
 }
 
 void chunk_obj::change_block(int x, int y, int z, short ID)
