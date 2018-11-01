@@ -6,6 +6,9 @@
 #include <stdlib.h>
 #include <vector>
 
+//include Simplex Noise Header
+#include <Simplex.h>
+
 // Include GLEW
 #include <GL/glew.h>
 
@@ -201,14 +204,16 @@ void gl_main::loadObjects()
 
     //objects.push_back(new baseobject(1,2,0,2,glm::vec3(0,0,0)));
 
-    size_t b=8;
-    size_t l=8;
+    size_t b=16;
+    size_t l=16;
     size_t h=2;
 
     float d=b/2-0.5f;
     float dh=h/2-0.5f +3;
     float dl=l/2-0.5f;
 
+
+    Simplex::seed(0);
     for(size_t x=0;x<b;x++){
         for(size_t y=0;y<h;y++){
             for(size_t z=0;z<l;z++){

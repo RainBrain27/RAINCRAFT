@@ -39,7 +39,7 @@ chunk_obj::~chunk_obj() {
 #define CHUNK_SIZE 16
 void chunk_obj::generate_chunk(glm::ivec3 coord)
 {
-    chunk_shape.set_Block_list(terrain_generator::generateChunk(coord.x,coord.y,coord.z, Block_list));
+    chunk_shape.set_Block_list(terrain_generator::generateChunk(coord.x,coord.y,coord.z, Block_list,terrain_generator::simplexNoise));
     /*
     int ID=1;
     int b=16;

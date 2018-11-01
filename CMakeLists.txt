@@ -44,6 +44,7 @@ include_directories(
         #external/bullet-2.81-rev2613/src/
         common/
         shaders/
+        external/SimplexNoise/
         .
 )
 
