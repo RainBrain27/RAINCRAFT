@@ -8,21 +8,25 @@
 #define repeat_j(n) for(int j = 0; j <n;j++)
 
 
+
 chunk::chunk()
-
 {
-    //create_alpha_cube();
-
     init_lists();
 
     init_buffers();
 }
 
-
+chunk::~chunk()
+{
+    size_t s=vertexbuffers.size();
+    for(size_t i=0;i<s;i++){
+        remove_buffer();
+    }
+}
 
 void chunk::change_block(int x, int y, int z, short ID)
 {
-    int b=16;
+    int b=length; //b weg machen
     if(Block_list[x][y][z]!=ID){
         Block_list[x][y][z]=ID;
 
@@ -59,29 +63,7 @@ void chunk::change_block(int x, int y, int z, short ID)
 
 void chunk::init_buffers()
 {
-    this->vertex_buffer_size=16*16*8*24;//vektoren //+1 for 1 empty space for clearing//not neccessary
-    element_buffer_size=16*16*8*36;//ecken elemente
-
-    //index_size=element_buffer_size; //for render durch (free_short)*6 ersetzt
-
-    //FIX:change values in more complex times
-
-    glGenBuffers(1, &vertexbuffer);
-    glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
-    glBufferData(GL_ARRAY_BUFFER, vertex_buffer_size * sizeof(glm::vec3), 0, GL_STATIC_DRAW);
-
-    glGenBuffers(1, &uvbuffer);
-    glBindBuffer(GL_ARRAY_BUFFER, uvbuffer);
-    glBufferData(GL_ARRAY_BUFFER, vertex_buffer_size * sizeof(glm::vec2), 0, GL_STATIC_DRAW);
-
-    glGenBuffers(1, &normalbuffer);
-    glBindBuffer(GL_ARRAY_BUFFER, normalbuffer);
-    glBufferData(GL_ARRAY_BUFFER, vertex_buffer_size * sizeof(glm::vec3), 0, GL_STATIC_DRAW);
-
-    glGenBuffers(1, &elementbuffer);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementbuffer);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, element_buffer_size * sizeof(unsigned short), 0, GL_STATIC_DRAW);
-
+    max_buffer_size=16*16*2*6; // ein  achtel der maximalen flachen zur speicheroptimierung
 }
 
 void chunk::fill_buffers()
@@ -118,7 +100,6 @@ void chunk::remove_quad(int x, int y, int z, int side)
 {
     short space=Quad_list[x][y][z][side];
     if(space!=-1){
-        //delete_quad(space);
         give_space(space);
         Quad_list[x][y][z][side]=-1;
     }
@@ -128,46 +109,33 @@ void chunk::write_quad(int x, int y, int z, int side, short space)
 {
 
     glm::vec3 pos(x-7.5,y-7.5,z-7.5);
+
+    size_t buffer_number = space/max_buffer_size;
+    short buffer_space = space%max_buffer_size;
+
     std::vector<glm::vec3> temp_v;
     repeat_i(4){
         temp_v.push_back(cube_side_vertices[side][i]+pos);
     }
 
-    glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
-    glBufferSubData(GL_ARRAY_BUFFER,space*4*sizeof(glm::vec3),4*sizeof(glm::vec3),&temp_v[0]);
+    glBindBuffer(GL_ARRAY_BUFFER, vertexbuffers[buffer_number]);
+    glBufferSubData(GL_ARRAY_BUFFER,buffer_space*4*sizeof(glm::vec3),4*sizeof(glm::vec3),&temp_v[0]);
 
-    glBindBuffer(GL_ARRAY_BUFFER, uvbuffer);
-    glBufferSubData(GL_ARRAY_BUFFER,space*4*sizeof(glm::vec2),4*sizeof(glm::vec2),cube_side_uvs[side]);
+    glBindBuffer(GL_ARRAY_BUFFER, uvbuffers[buffer_number]);
+    glBufferSubData(GL_ARRAY_BUFFER,buffer_space*4*sizeof(glm::vec2),4*sizeof(glm::vec2),cube_side_uvs[side]);
 
-    glBindBuffer(GL_ARRAY_BUFFER, normalbuffer);
-    glBufferSubData(GL_ARRAY_BUFFER,space*4*sizeof(glm::vec3),4*sizeof(glm::vec3),cube_side_normals[side]);
+    glBindBuffer(GL_ARRAY_BUFFER, normalbuffers[buffer_number]);
+    glBufferSubData(GL_ARRAY_BUFFER,buffer_space*4*sizeof(glm::vec3),4*sizeof(glm::vec3),cube_side_normals[side]);
 
 
     std::vector<unsigned short> temp_e;
     repeat_i(6){
-        temp_e.push_back(cube_side_indices[side][i]+space*4);
+        temp_e.push_back(cube_side_indices[side][i]+buffer_space*4);
     }
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementbuffer);
-    glBufferSubData(GL_ELEMENT_ARRAY_BUFFER,space*6*sizeof(unsigned short),6*sizeof(unsigned short),&temp_e[0]);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementbuffers[buffer_number]);
+    glBufferSubData(GL_ELEMENT_ARRAY_BUFFER,buffer_space*6*sizeof(unsigned short),6*sizeof(unsigned short),&temp_e[0]);
+
 }
-
-
-/*
-void chunk::delete_quad(short space) //can be removed by seting index_size to other values #free_short * x
-{
-    std::vector<unsigned short> O;
-    repeat_i(6){
-        //O.push_back(16*16*8*24); //aufpassen bei größenveränderung des Buffer
-        O.push_back(37000);
-    }
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementbuffer);
-    glBufferSubData(GL_ELEMENT_ARRAY_BUFFER,space*6* sizeof(unsigned short),6 * sizeof(unsigned short),&O[0]);
-
-    //AUTSCH::WARNING
-    //OPTIMIZE
-    //learn to clear data
-}
-*/
 
 void chunk::clone_alpha_cube(std::vector<unsigned short> cube_indices, std::vector<glm::vec3> cube_indexed_vertices, std::vector<glm::vec2> cube_indexed_uvs, std::vector<glm::vec3> cube_indexed_normals)
 {
@@ -185,21 +153,22 @@ void chunk::clone_alpha_cube(std::vector<unsigned short> cube_indices, std::vect
 
 short chunk::get_space()
 {
-    if(free_short < 16*16*8*6){
-        short space=free_short;
-        free_short+=1;
-        return space;
+    short space=free_short;
+    if(free_short%max_buffer_size==0){
+        add_buffer();
     }
-    else{
-        printf("ERROR:FULL_HOUSE");
-        return 0;
-    }
+    free_short+=1;
+    return space;
+
 }
 
 void chunk::give_space(short space)
 {
     if(free_short==space+1){
         free_short-=1;
+        if(free_short%max_buffer_size==max_buffer_size-1){
+            remove_buffer();
+        }
     }
     else{
         int b=16;
@@ -208,10 +177,13 @@ void chunk::give_space(short space)
                 for(int z=0;z<b;z++){                       //ridicules
                     for(int side=0;side<6;side++){
                         if(Quad_list[x][y][z][side]==free_short-1){
-                            //delete_quad(free_short-1);
-                            free_short-=1;
                             Quad_list[x][y][z][side]=space;
                             write_quad(x,y,z,side,space);
+
+                            free_short-=1;
+                            if(free_short%max_buffer_size==max_buffer_size-1){
+                                remove_buffer();
+                            }
 
                             return;
                         }
@@ -295,4 +267,53 @@ void chunk::init_lists()
     }
 
     free_short=0;
+}
+
+void chunk::add_buffer()
+{
+    int vertex_buffer_size=max_buffer_size*4;//vektoren
+    int element_buffer_size=max_buffer_size*6;//ecken elemente
+
+    size_t buffer_number = vertexbuffers.size();
+    //size changes here
+    vertexbuffers.push_back(0);
+    uvbuffers.push_back(0);
+    normalbuffers.push_back(0);
+    elementbuffers.push_back(0);
+
+    glGenBuffers(1, &vertexbuffers[buffer_number]);
+    glBindBuffer(GL_ARRAY_BUFFER, vertexbuffers[buffer_number]);
+    glBufferData(GL_ARRAY_BUFFER, vertex_buffer_size * sizeof(glm::vec3), 0, GL_STATIC_DRAW);
+
+    glGenBuffers(1, &uvbuffers[buffer_number]);
+    glBindBuffer(GL_ARRAY_BUFFER, uvbuffers[buffer_number]);
+    glBufferData(GL_ARRAY_BUFFER, vertex_buffer_size * sizeof(glm::vec2), 0, GL_STATIC_DRAW);
+
+    glGenBuffers(1, &normalbuffers[buffer_number]);
+    glBindBuffer(GL_ARRAY_BUFFER, normalbuffers[buffer_number]);
+    glBufferData(GL_ARRAY_BUFFER, vertex_buffer_size * sizeof(glm::vec3), 0, GL_STATIC_DRAW);
+
+    glGenBuffers(1, &elementbuffers[buffer_number]);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementbuffers[buffer_number]);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, element_buffer_size * sizeof(unsigned short), 0, GL_STATIC_DRAW);
+
+}
+
+void chunk::remove_buffer()
+{
+    size_t buffer_number = vertexbuffers.size()-1;
+    if(buffer_number>=0){
+        glDeleteBuffers(1, &vertexbuffers[buffer_number]);
+        glDeleteBuffers(1, &uvbuffers[buffer_number]);
+        glDeleteBuffers(1, &normalbuffers[buffer_number]);
+        glDeleteBuffers(1, &elementbuffers[buffer_number]);
+
+        vertexbuffers.pop_back();
+        uvbuffers.pop_back();
+        normalbuffers.pop_back();
+        elementbuffers.pop_back();
+    }
+    else{
+        printf("removing not existing buffer ?!\n");
+    }
 }

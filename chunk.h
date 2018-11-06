@@ -1,28 +1,36 @@
 #ifndef CHUNK_H
 #define CHUNK_H
 
-#include "shape.h"
+//#include "shape.h"
 #include <vector>
 #include <stack>
+#include <GL/glew.h>
+#include <glm/glm.hpp>
 
-class chunk : public shape //16**3 blocke
+class chunk //: public shape //16**3 blocke
 {
 public:
     chunk();
+    ~chunk();
 
-    GLint get_index_size(){return (free_short)*6;} //overrides shape funktion
+    GLint get_index_size(size_t buffer_number){
+        if(buffer_number<vertexbuffers.size()-1){return max_buffer_size*6;}
+        else{return (free_short-max_buffer_size*buffer_number)*6;}
+    }
+
+    std::vector<GLuint> get_vertexbuffers(){return vertexbuffers;}
+    std::vector<GLuint> get_uvbuffers(){return uvbuffers;}
+    std::vector<GLuint> get_normalbuffers(){return normalbuffers;}
+    std::vector<GLuint> get_elementbuffers(){return elementbuffers;}
+
 
     void change_block(int x,int y,int z, short ID);
     short* get_Block_list(int x,int y,int z){return &Block_list[x][y][z];}
     void set_Block_list(int x,int y,int z, short ID){Block_list[x][y][z]=ID;}
     void refresh_chunk(){fill_buffers();}
 
-    void set_neighbours(chunk* neighbours[6]){
-        this->neighbours=neighbours;
-    }
-    void set_Block_list(short Block_list[16][16][16]){
-        this->Block_list=Block_list;
-    }
+    void set_neighbours(chunk* neighbours[6]){this->neighbours=neighbours;}
+    void set_Block_list(short Block_list[16][16][16]){this->Block_list=Block_list;}
 
     void clone_alpha_cube(std::vector<unsigned short> cube_indices,
                           std::vector<glm::vec3> cube_indexed_vertices,
@@ -30,13 +38,11 @@ public:
                           std::vector<glm::vec3> cube_indexed_normals);
 
     chunk** neighbours;
-protected:
+private:
 
     void init_buffers();
     void fill_buffers();
-
-protected:
-
+    void init_lists();
 
     unsigned short cube_side_indices[6][6];
     glm::vec3 cube_side_vertices[6][4];
@@ -47,13 +53,20 @@ private:
 
     short (*Block_list)[16][16];
 
-    void init_lists();
+    //
+    int length=16;
+    int max_buffer_size;
 
-    //void create_alpha_cube(); //alpha-cube
+    std::vector<GLuint> vertexbuffers;
+    std::vector<GLuint> uvbuffers;
+    std::vector<GLuint> normalbuffers;
+    std::vector<GLuint> elementbuffers;
+
+    void add_buffer();
+    void remove_buffer();
 
 
-    int vertex_buffer_size;
-    int element_buffer_size;
+private:
     short Quad_list[16][16][16][6];
     short free_short=0;
 
@@ -63,7 +76,6 @@ private:
     void add_quad(int x,int y, int z, int side);   //decide where to write
     void remove_quad(int x,int y, int z, int side);
     void write_quad(int x,int y, int z, int side,short space); //writes in buffer
-    //void delete_quad(short space); not renderin till end of buffer
 
 
 

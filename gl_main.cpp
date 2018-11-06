@@ -160,7 +160,7 @@ void gl_main::create_shapes()
     for(size_t i=0;i<paths.size();i++){
         shapes.push_back(new shape(paths[i]));
     }
-    shapes.push_back(new chunk());
+    //shapes.push_back(new chunk());
 
 
 }
@@ -202,7 +202,7 @@ void gl_main::loadObjects()
 
     size_t b=18;
     size_t l=18;
-    size_t h=4;
+    size_t h=18;
 
     float d=b/2-0.5f;
     float dh=h/2-0.5f +3;
@@ -224,6 +224,7 @@ void gl_main::loadObjects()
             }
         }
     }
+    printf("taste");
     for(size_t x=0;x<b;x++){
         for(size_t y=0;y<h;y++){
             for(size_t z=0;z<l;z++){
@@ -242,11 +243,11 @@ void gl_main::loadObjects()
             }
         }
     }
-
+    printf("TIME");
     for(size_t i=0;i<chunks.size();i++){
         chunks[i]->refresh_chunk();
     }
-
+    printf("TO");
 
     for(size_t i=0;i<b*16;i++){
         size_t x=42,y=30;
@@ -263,7 +264,7 @@ void gl_main::loadObjects()
         chunks[(x/16)*h*l + y/16*l + i/16]->change_block(x%16,y%16,i%16,-1);
 
     }
-
+    printf("DIE");
 
     /*
     printf("\nstart\n");
@@ -351,6 +352,13 @@ void gl_main::paint()
     objects_size=chunks.size();
     chunk* shape_ptr;
 
+    std::vector<GLuint> vertexbuffers;
+    std::vector<GLuint> uvbuffers;
+    std::vector<GLuint> normalbuffers;
+    std::vector<GLuint> elementbuffers;
+
+    size_t buffer_count;
+
     while(i<objects_size){  //!!! watch out , i++ down there
         if(prog != chunks[i]->get_programmID()){
             prog=chunks[i]->get_programmID();
@@ -372,17 +380,30 @@ void gl_main::paint()
 
         shape_ptr=chunks[i]->get_chunk_shape();
 
-        glBindBuffer(GL_ARRAY_BUFFER, shape_ptr->get_vertexbuffer());
-        glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,0,0);
-        glBindBuffer(GL_ARRAY_BUFFER, shape_ptr->get_uvbuffer());
-        glVertexAttribPointer(1,2,GL_FLOAT,GL_FALSE,0,0);
-        glBindBuffer(GL_ARRAY_BUFFER, shape_ptr->get_normalbuffer());
-        glVertexAttribPointer(2,3,GL_FLOAT,GL_FALSE,0,0);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, shape_ptr->get_elementbuffer());
+        vertexbuffers=shape_ptr->get_vertexbuffers();
+        if(vertexbuffers.size()>0){
+            uvbuffers=shape_ptr->get_uvbuffers();
+            normalbuffers=shape_ptr->get_normalbuffers();
+            elementbuffers=shape_ptr->get_elementbuffers();
 
-        glUniformMatrix4fv(ModelMatrixIDs[prog], 1, GL_FALSE, &chunks[i]->get_ModelMatrix()[0][0]);
-        glDrawElements(GL_TRIANGLES,shape_ptr->get_index_size(),GL_UNSIGNED_SHORT,0);//(void*)0);
-            // mode // count// type // element array buffer offset
+            buffer_count=vertexbuffers.size();
+            glUniformMatrix4fv(ModelMatrixIDs[prog], 1, GL_FALSE, &chunks[i]->get_ModelMatrix()[0][0]);
+
+            for(size_t buffer_number=0;buffer_number<buffer_count;buffer_number++){
+                glBindBuffer(GL_ARRAY_BUFFER, vertexbuffers[buffer_number]);
+                glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,0,0);
+                glBindBuffer(GL_ARRAY_BUFFER, uvbuffers[buffer_number]);
+                glVertexAttribPointer(1,2,GL_FLOAT,GL_FALSE,0,0);
+                glBindBuffer(GL_ARRAY_BUFFER, normalbuffers[buffer_number]);
+                glVertexAttribPointer(2,3,GL_FLOAT,GL_FALSE,0,0);
+                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementbuffers[buffer_number]);
+
+
+                glDrawElements(GL_TRIANGLES,shape_ptr->get_index_size(buffer_number),GL_UNSIGNED_SHORT,0);//(void*)0);
+                    // mode // count// type // element array buffer offset
+            }
+        }
+
         i++;
 
     }
