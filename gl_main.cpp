@@ -200,18 +200,19 @@ void gl_main::loadObjects()
 
     //objects.push_back(new baseobject(1,2,0,2,glm::vec3(0,0,0)));
 
-    size_t b=18;
-    size_t l=18;
-    size_t h=18;
+    int b=chunk_sizes[0];
+    int h=chunk_sizes[1];
+    int l=chunk_sizes[2];
 
     float d=b/2-0.5f;
     float dh=h/2-0.5f +3;
     float dl=l/2-0.5f;
 
-    for(size_t x=0;x<b;x++){
-        for(size_t y=0;y<h;y++){
-            for(size_t z=0;z<l;z++){
-                chunks.push_back(new chunk_obj(2,  //texture
+    for(int x=0;x<b;x++){
+        printf("%i\n",x);
+        for(int y=0;y<h;y++){
+            for(int z=0;z<l;z++){
+                chunks[x][y][z]=new chunk_obj(2,  //texture
                                                0,  //program
                                                1,  //ObjID (not needed)
                                                glm::vec3((x-d)*16,(y-dh)*16,(z-dl)*16), //position
@@ -219,61 +220,57 @@ void gl_main::loadObjects()
                                                cube_indexed_vertices,
                                                cube_indexed_uvs,
                                                cube_indexed_normals
-                                               ));
+                                               );
                 //printf("%i \n",x*b*b+y*b+z);
             }
         }
     }
     printf("taste");
-    for(size_t x=0;x<b;x++){
-        for(size_t y=0;y<h;y++){
-            for(size_t z=0;z<l;z++){
+    for(int x=0;x<b;x++){
+        for(int y=0;y<h;y++){
+            for(int z=0;z<l;z++){
                 if(x>0){
-                    chunks[    x*h*l + y*l + z]->set_neighbor(chunks[(x-1)*h*l + y*l + z],1);
-                    chunks[(x-1)*h*l + y*l + z]->set_neighbor(chunks[    x*h*l + y*l + z],3);
+                    chunks[x][y][z]->set_neighbor(chunks[x-1][y][z],1);
+                    chunks[x-1][y][z]->set_neighbor(chunks[x][y][z],3);
                 }
                 if(y>0){
-                    chunks[x*h*l +     y*l + z]->set_neighbor(chunks[x*h*l + (y-1)*l + z],5);
-                    chunks[x*h*l + (y-1)*l + z]->set_neighbor(chunks[x*h*l + y*l   +   z],4);
+                    chunks[x][y][z]->set_neighbor(chunks[x][y-1][z],5);
+                    chunks[x][y-1][z]->set_neighbor(chunks[x][y][z],4);
                 }
                 if(z>0){
-                    chunks[x*h*l +     y*l + z]->set_neighbor(chunks[x*h*l + y*l + (z-1)],0);
-                    chunks[x*h*l + y*l + (z-1)]->set_neighbor(chunks[x*h*l + y*l +     z],2);
+                    chunks[x][y][z]->set_neighbor(chunks[x][y][z-1],0);
+                    chunks[x][y][z-1]->set_neighbor(chunks[x][y][z],2);
                 }
             }
         }
     }
     printf("TIME");
-    for(size_t i=0;i<chunks.size();i++){
-        chunks[i]->refresh_chunk();
+    for(int x=0;x<b;x++){
+        printf("%i\n",x);
+        for(int y=0;y<h;y++){
+            for(int z=0;z<l;z++){
+                chunks[x][y][z]->refresh_chunk();
+            }
+        }
     }
     printf("TO");
 
-    for(size_t i=0;i<b*16;i++){
-        size_t x=42,y=30;
-        chunks[(x/16)*h*l + y/16*l + i/16]->change_block(x%16,y%16,i%16,-1);
+    for(int i=0;i<b*16;i++){
+        int x=42,y=30;
+        chunks[x/16][y/16][i/16]->change_block(x%16,y%16,i%16,-1);
         y=31;
-        chunks[(x/16)*h*l + y/16*l + i/16]->change_block(x%16,y%16,i%16,-1);
+        chunks[x/16][y/16][i/16]->change_block(x%16,y%16,i%16,-1);
         y=32;
-        chunks[(x/16)*h*l + y/16*l + i/16]->change_block(x%16,y%16,i%16,-1);
+        chunks[x/16][y/16][i/16]->change_block(x%16,y%16,i%16,-1);
         y=30;x=43;
-        chunks[(x/16)*h*l + y/16*l + i/16]->change_block(x%16,y%16,i%16,-1);
+        chunks[x/16][y/16][i/16]->change_block(x%16,y%16,i%16,-1);
         y=31;
-        chunks[(x/16)*h*l + y/16*l + i/16]->change_block(x%16,y%16,i%16,-1);
+        chunks[x/16][y/16][i/16]->change_block(x%16,y%16,i%16,-1);
         y=32;
-        chunks[(x/16)*h*l + y/16*l + i/16]->change_block(x%16,y%16,i%16,-1);
+        chunks[x/16][y/16][i/16]->change_block(x%16,y%16,i%16,-1);
 
     }
     printf("DIE");
-
-    /*
-    printf("\nstart\n");
-    chunks[0]->change_block(1,1,1,-1);
-    printf("\nstart\n");
-    chunks[0]->change_block(1,1,1,1);
-
-    */
-
 
 
 }
@@ -303,10 +300,9 @@ void gl_main::paint()
     size_t prog         = 100000; //WARNING if first obj uses shader 100000-> Bug !!!
     int    objID        = 100000;
 
-    size_t i=0;
     size_t objects_size=objects.size();
 
-    while(i<objects_size){  //!!! watch out , i++ down there
+    for(size_t i=0;i<objects_size;i++){  //!!! watch out , i++ down there
         if(objID !=objects[i]->get_objID()){
             objID =objects[i]->get_objID();
             if(prog != objects[i]->get_programmID()){
@@ -342,14 +338,10 @@ void gl_main::paint()
         glUniformMatrix4fv(ModelMatrixIDs[prog], 1, GL_FALSE, &objects[i]->get_ModelMatrix()[0][0]);
         glDrawElements(GL_TRIANGLES,shapes[shapeID]->get_index_size(),GL_UNSIGNED_SHORT,0);//(void*)0);
             // mode // count// type // element array buffer offset
-        i++;
 
     }
 
     //draw chunks
-
-    i=0;
-    objects_size=chunks.size();
     chunk* shape_ptr;
 
     std::vector<GLuint> vertexbuffers;
@@ -359,53 +351,55 @@ void gl_main::paint()
 
     size_t buffer_count;
 
-    while(i<objects_size){  //!!! watch out , i++ down there
-        if(prog != chunks[i]->get_programmID()){
-            prog=chunks[i]->get_programmID();
-            glUseProgram(programIDs[prog]);
-            glUniform3f(LightIDs[prog], lightPos.x, lightPos.y, lightPos.z);
-            glUniformMatrix4fv(MatrixIDs[prog], 1, GL_FALSE, &ProjectionMatrix[0][0]);
-            glUniformMatrix4fv(ViewMatrixIDs[prog], 1, GL_FALSE, &ViewMatrix[0][0]);
-            glActiveTexture(GL_TEXTURE0);
+    for(int x=0;x<chunk_sizes[0];x++){
+        for(int y=0;y<chunk_sizes[1];y++){
+            for(int z=0;z<chunk_sizes[2];z++){
 
-            TextureID= 100000; //WARNING if first obj uses shader 100000-> Bug !!!
-            shapeID  = 100000;
-        }
+                if(prog != chunks[x][y][z]->get_programmID()){
+                    prog=chunks[x][y][z]->get_programmID();
+                    glUseProgram(programIDs[prog]);
+                    glUniform3f(LightIDs[prog], lightPos.x, lightPos.y, lightPos.z);
+                    glUniformMatrix4fv(MatrixIDs[prog], 1, GL_FALSE, &ProjectionMatrix[0][0]);
+                    glUniformMatrix4fv(ViewMatrixIDs[prog], 1, GL_FALSE, &ViewMatrix[0][0]);
+                    glActiveTexture(GL_TEXTURE0);
 
-        if(TextureID != chunks[i]->get_TextureID()){
-            TextureID = chunks[i]->get_TextureID();
-            glBindTexture(GL_TEXTURE_2D, Textures[TextureID]);
-            glUniform1i(TextureSamplerIDs[prog], 0);
-        }
+                    TextureID= 100000; //WARNING if first obj uses shader 100000-> Bug !!!
+                    shapeID  = 100000;
+                }
 
-        shape_ptr=chunks[i]->get_chunk_shape();
+                if(TextureID != chunks[x][y][z]->get_TextureID()){
+                    TextureID = chunks[x][y][z]->get_TextureID();
+                    glBindTexture(GL_TEXTURE_2D, Textures[TextureID]);
+                    glUniform1i(TextureSamplerIDs[prog], 0);
+                }
 
-        vertexbuffers=shape_ptr->get_vertexbuffers();
-        if(vertexbuffers.size()>0){
-            uvbuffers=shape_ptr->get_uvbuffers();
-            normalbuffers=shape_ptr->get_normalbuffers();
-            elementbuffers=shape_ptr->get_elementbuffers();
+                shape_ptr=chunks[x][y][z]->get_chunk_shape();
 
-            buffer_count=vertexbuffers.size();
-            glUniformMatrix4fv(ModelMatrixIDs[prog], 1, GL_FALSE, &chunks[i]->get_ModelMatrix()[0][0]);
+                vertexbuffers=shape_ptr->get_vertexbuffers();
+                if(vertexbuffers.size()>0){
+                    uvbuffers=shape_ptr->get_uvbuffers();
+                    normalbuffers=shape_ptr->get_normalbuffers();
+                    elementbuffers=shape_ptr->get_elementbuffers();
 
-            for(size_t buffer_number=0;buffer_number<buffer_count;buffer_number++){
-                glBindBuffer(GL_ARRAY_BUFFER, vertexbuffers[buffer_number]);
-                glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,0,0);
-                glBindBuffer(GL_ARRAY_BUFFER, uvbuffers[buffer_number]);
-                glVertexAttribPointer(1,2,GL_FLOAT,GL_FALSE,0,0);
-                glBindBuffer(GL_ARRAY_BUFFER, normalbuffers[buffer_number]);
-                glVertexAttribPointer(2,3,GL_FLOAT,GL_FALSE,0,0);
-                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementbuffers[buffer_number]);
+                    buffer_count=vertexbuffers.size();
+                    glUniformMatrix4fv(ModelMatrixIDs[prog], 1, GL_FALSE, &chunks[x][y][z]->get_ModelMatrix()[0][0]);
+
+                    for(size_t buffer_number=0;buffer_number<buffer_count;buffer_number++){
+                        glBindBuffer(GL_ARRAY_BUFFER, vertexbuffers[buffer_number]);
+                        glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,0,0);
+                        glBindBuffer(GL_ARRAY_BUFFER, uvbuffers[buffer_number]);
+                        glVertexAttribPointer(1,2,GL_FLOAT,GL_FALSE,0,0);
+                        glBindBuffer(GL_ARRAY_BUFFER, normalbuffers[buffer_number]);
+                        glVertexAttribPointer(2,3,GL_FLOAT,GL_FALSE,0,0);
+                        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementbuffers[buffer_number]);
 
 
-                glDrawElements(GL_TRIANGLES,shape_ptr->get_index_size(buffer_number),GL_UNSIGNED_SHORT,0);//(void*)0);
-                    // mode // count// type // element array buffer offset
+                        glDrawElements(GL_TRIANGLES,shape_ptr->get_index_size(buffer_number),GL_UNSIGNED_SHORT,0);//(void*)0);
+                            // mode // count// type // element array buffer offset
+                    }
+                }
             }
         }
-
-        i++;
-
     }
 
 
@@ -471,8 +465,12 @@ void gl_main::clean()
     for(size_t i=0;i<objects.size();i++){
         delete(objects[i]);
     }
-    for(size_t i=0;i<chunks.size();i++){
-        delete(chunks[i]);
+    for(int x=0;x<chunk_sizes[0];x++){
+        for(int y=0;y<chunk_sizes[1];y++){
+            for(int z=0;z<chunk_sizes[2];z++){
+                delete(chunks[x][y][z]);
+            }
+        }
     }
     //destruktor wegen new???
 

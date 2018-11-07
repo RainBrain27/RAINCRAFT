@@ -39,7 +39,13 @@ void chunk_obj::generate_chunk()
     for(int x=0;x<b;x++){
         for(int y=0;y<b;y++){
             for(int z=0;z<b;z++){
-                chunk_shape.set_Block_list(x,y,z,ID);
+                if(y<4){
+                    //if( (( (x-8)*(x-8)+(z-8)*(z-8) )*0.03f+(y))<4 ){
+                    //if((x-8)*(x-8)+(y-8)*(y-8)+(z-8)*(z-8)<64){
+                    if(x+y+z==8){
+                        chunk_shape.set_Block_list(x,y,z,ID);
+                    }
+                }
             }
         }
     }
