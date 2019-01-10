@@ -3,6 +3,9 @@
 #include "common/vboindexer.hpp"
 
 #include <stdio.h>
+#include <string.h>
+#include <vector>
+#include <glm/glm.hpp>
 
 #define repeat_i(n) for(int i = 0; i <n;i++)
 #define repeat_j(n) for(int j = 0; j <n;j++)
@@ -69,23 +72,198 @@ void chunk::init_buffers()
 void chunk::fill_buffers()
 {
     int b=16;
+    int buffer_number = free_short/max_buffer_size+1; //anzahl der buffer
+    if(free_short%max_buffer_size==0){
+        buffer_number-=1;
+    }
+    repeat_i(buffer_number){
+        remove_buffer();
+    }
+    free_short=0;
+    memset(Quad_list,short(-1),16*16*16*6); // fix: bei veranderung quad_list //notwendig???
+    new_vertices.clear(); //fix: wenn es pointer auf glm::vec3 ist kann es speicherprobleme geben
+    new_uvs.clear();
+    new_normals.clear();
+    new_indices.clear();
+
+    buffer_number = free_short/max_buffer_size+1;
+    //blockcheck:
     for(int x=0;x<b;x++){
         for(int y=0;y<b;y++){
             for(int z=0;z<b;z++){
-                check_block(x, y, z);
+                check_block2(x, y, z);
+                if(free_short/max_buffer_size+1>buffer_number){
+                }
             }
         }
     }
+    if(free_short%max_buffer_size != 0){
+       paste_in_buffer(free_short/max_buffer_size);
+    }
 }
+
+//die -2 funktionen fullen nur listen und schreiben nicht auf die GPU
+
+void chunk::check_block2(int x, int y, int z)
+{
+    //z- x- z+ x+ y+ y-
+        int b=16;
+
+        int dir[6][3]={
+        {0,0,-1},
+        {-1,0,0},
+        {0,0,1},
+        {1,0,0},
+        {0,1,0},
+        {0,-1,0}
+        };
+
+        bool dec[6]={z>0,x>0,z<b-1,x<b-1,y<b-1,y>0};
+
+        int ext[6][3]={
+        {x,y,b-1},
+        {b-1,y,z},
+        {x,y,0},
+        {0,y,z},
+        {x,0,z},
+        {x,b-1,z}
+        };
+        /*kann nicht passieren
+        if(Block_list[x][y][z]==-1){
+            remove_quad(x,y,z,0);
+            remove_quad(x,y,z,1);
+            remove_quad(x,y,z,2);
+            remove_quad(x,y,z,3);
+            remove_quad(x,y,z,4);
+            remove_quad(x,y,z,5);
+        }*/
+        //else{
+        if(not(Block_list[x][y][z]==-1)){
+            for(int i=0;i<6;i++){
+                if(dec[i]){ //liegt nicht am entsprechendem rand
+                    if(Block_list[ x+dir[i][0] ][ y+dir[i][1] ][ z+dir[i][2] ] ==-1){
+                        add_quad2(x,y,z,i);
+                    }
+                    /*
+                    else{
+                        remove_quad(x,y,z,i);
+                    }*/
+                }
+                else{
+                    if(neighbours[i]!=0){ //nachbarchunk existiert
+                        if(neighbours[i]->Block_list[ ext[i][0] ][ ext[i][1] ][ ext[i][2] ] ==-1){
+                            add_quad2(x,y,z,i);
+                        }
+                        /*
+                        else{
+                            remove_quad(x,y,z,i);
+                        }*/
+                    }
+                    else{add_quad2(x,y,z,i); }
+                }
+
+            }
+      }
+}
+
+void chunk::add_quad2(int x, int y, int z, int side)
+{
+    if(Block_list[x][y][z]!=-1){
+        if(Quad_list[x][y][z][side]==-1){
+            short space=get_space2();
+            write_quad2(x,y,z,side,space);
+            Quad_list[x][y][z][side]=space;
+        }
+
+        else if(Quad_list[x][y][z][side]!=-1){
+            short space = Quad_list[x][y][z][side];
+            write_quad2(x,y,z,side,space);
+            Quad_list[x][y][z][side] = space;
+        }
+    }
+    else{printf("Seltsamer add_quad2-Aufruf");}
+}
+
+void chunk::write_quad2(int x, int y, int z, int side, short space)
+{
+    glm::vec3 pos(x-7.5,y-7.5,z-7.5);
+
+    //size_t buffer_number = space/max_buffer_size;
+    short buffer_space = space%max_buffer_size;
+
+    repeat_i(4){
+        new_vertices.push_back(cube_side_vertices[side][i]+pos);
+        new_uvs.push_back(cube_side_uvs[side][i]);
+        new_normals.push_back(cube_side_normals[side][i]);
+    }
+    repeat_i(6){
+        new_indices.push_back(cube_side_indices[side][i]+buffer_space*4); // nicht korrekt, funktioniert nur wenn nachher unterteilt
+        // gegebenfalls zu aufteilung der Buffer
+    }
+
+    /*
+    glBindBuffer(GL_ARRAY_BUFFER, vertexbuffers[buffer_number]);
+    glBufferSubData(GL_ARRAY_BUFFER,buffer_space*4*sizeof(glm::vec3),4*sizeof(glm::vec3),&temp_v[0]);
+
+    glBindBuffer(GL_ARRAY_BUFFER, uvbuffers[buffer_number]);
+    glBufferSubData(GL_ARRAY_BUFFER,buffer_space*4*sizeof(glm::vec2),4*sizeof(glm::vec2),cube_side_uvs[side]);
+
+    glBindBuffer(GL_ARRAY_BUFFER, normalbuffers[buffer_number]);
+    glBufferSubData(GL_ARRAY_BUFFER,buffer_space*4*sizeof(glm::vec3),4*sizeof(glm::vec3),cube_side_normals[side]);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementbuffers[buffer_number]);
+    glBufferSubData(GL_ELEMENT_ARRAY_BUFFER,buffer_space*6*sizeof(unsigned short),6*sizeof(unsigned short),&temp_e[0]);
+    */
+}
+
+short chunk::get_space2()
+{
+    short space=free_short;
+    if(free_short%max_buffer_size==0){
+        if(free_short>0){paste_in_buffer(free_short/max_buffer_size-1);}
+        add_buffer();
+    }
+    free_short+=1;
+    return space;
+}
+
+void chunk::paste_in_buffer(size_t buffer_number)
+{
+
+    int size=new_vertices.size()/4;
+    //printf("hey %i %i\n",new_vertices.size()/4,size);
+    if(new_vertices.size()!=0){
+    glBindBuffer(GL_ARRAY_BUFFER, vertexbuffers[buffer_number]);
+    glBufferSubData(GL_ARRAY_BUFFER,0,size*4*sizeof(glm::vec3),&new_vertices[0]);
+
+    glBindBuffer(GL_ARRAY_BUFFER, uvbuffers[buffer_number]);
+    glBufferSubData(GL_ARRAY_BUFFER,0,size*4*sizeof(glm::vec2),&new_uvs[0]);
+
+    glBindBuffer(GL_ARRAY_BUFFER, normalbuffers[buffer_number]);
+    glBufferSubData(GL_ARRAY_BUFFER,0,size*4*sizeof(glm::vec3),&new_normals[0]);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementbuffers[buffer_number]);
+    glBufferSubData(GL_ELEMENT_ARRAY_BUFFER,0,size*6*sizeof(unsigned short),&new_indices[0]);
+    }
+    else{
+        printf("nothing to draw!\n");
+    }
+    new_vertices.clear();
+    new_indices.clear();
+    new_normals.clear();
+    new_uvs.clear();
+}
+
+
 
 void chunk::add_quad(int x, int y, int z, int side)
 {
     if(Block_list[x][y][z]!=-1){
         if(Quad_list[x][y][z][side]==-1){
-                short space=get_space();
-                write_quad(x,y,z,side,space);
-                Quad_list[x][y][z][side]=space;
-            }
+            short space=get_space();
+            write_quad(x,y,z,side,space);
+            Quad_list[x][y][z][side]=space;
+        }
 
         else if(Quad_list[x][y][z][side]!=-1){
             short space = Quad_list[x][y][z][side];

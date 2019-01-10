@@ -29,11 +29,12 @@ chunk_obj::chunk_obj(size_t texture, size_t program, int NewObjID, glm::vec3 pos
 
     generate_chunk();
 
-    //refresh_chunk();
+    //refresh_chunk(); //->fur alle zusammen aufgerufen
 }
 
 void chunk_obj::generate_chunk()
 {
+    // gibt dem chunk den Inhalt
     short ID=1;
     int b=16;
     for(int x=0;x<b;x++){
@@ -41,8 +42,8 @@ void chunk_obj::generate_chunk()
             for(int z=0;z<b;z++){
                 if(y<4){
                     //if( (( (x-8)*(x-8)+(z-8)*(z-8) )*0.03f+(y))<4 ){
-                    //if((x-8)*(x-8)+(y-8)*(y-8)+(z-8)*(z-8)<64){
-                    if(x+y+z==8){
+                    if((x-8)*(x-8)*(z-8)<20){
+                    //if(x+y+z==8){
                         chunk_shape.set_Block_list(x,y,z,ID);
                     }
                 }
@@ -50,7 +51,6 @@ void chunk_obj::generate_chunk()
         }
     }
 
-    //gegebenenfalls -1sen hineinschreiben
 }
 
 void chunk_obj::refresh_chunk()

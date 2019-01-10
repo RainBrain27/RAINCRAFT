@@ -43,8 +43,8 @@ private:
 
      std::vector<baseobject*> objects;
      //std::vector< chunk_obj* > chunks;
-     int chunk_sizes[3]={18,6,18};
-     chunk_obj* chunks[18][6][18];
+     int chunk_sizes[3]={18,18,18};
+     chunk_obj* chunks[18][18][18];
 
      size_t skycubeID;
      glm::vec3 lastCamPos;

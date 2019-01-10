@@ -42,6 +42,16 @@ private:
 
     void init_buffers();
     void fill_buffers();
+    std::vector<glm::vec3> new_vertices;
+    std::vector<glm::vec2> new_uvs;
+    std::vector<glm::vec3> new_normals;
+    std::vector<unsigned short> new_indices;
+    void check_block2(int x,int y,int z);
+    void add_quad2(int x,int y, int z, int side);
+    void write_quad2(int x,int y, int z, int side,short space);
+    short get_space2();
+    void paste_in_buffer(size_t buffer_number);
+
     void init_lists();
 
     unsigned short cube_side_indices[6][6];
@@ -68,7 +78,9 @@ private:
 
 private:
     short Quad_list[16][16][16][6];
+    //gibt Block speicher-short für alle Seiten des Blocks an
     short free_short=0;
+    //bool writing = true;
 
     short get_space();
     void give_space(short space);
