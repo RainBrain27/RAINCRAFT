@@ -170,8 +170,9 @@ void gl_main::loadTextures()
 
     Textures.push_back(loadDDS("textures/uvmap.DDS",false));
     Textures.push_back(loadDDS("textures/rathalos1.DDS",false));
-    Textures.push_back(loadDDS("textures/crafting_table.DDS",true));
     Textures.push_back(loadDDS("textures/skycube.DDS",true));
+    Textures.push_back(loadDDS("textures/grass_block.DDS",true));
+    Textures.push_back(loadDDS("textures/crafting_table.DDS",true));
 
 }
 
@@ -190,7 +191,7 @@ void gl_main::loadObjects()
     indexVBO(cube_vertices, cube_uvs, cube_normals, cube_indices, cube_indexed_vertices, cube_indexed_uvs, cube_indexed_normals);
 
 
-    objects.push_back(new baseobject(0,3,1,0,glm::vec3(0,0,0))); //skycube
+    objects.push_back(new baseobject(0,2,1,0,glm::vec3(0,0,0))); //skycube
     objects[0]->scale(256.0);
     skycubeID=0;
 
@@ -205,14 +206,14 @@ void gl_main::loadObjects()
     int l=chunk_sizes[2];
 
     float d=b/2-0.5f;
-    float dh=h/2-0.5f +3;
+    float dh=h/2-0.5f;
     float dl=l/2-0.5f;
 
     for(int x=0;x<b;x++){
         printf("%i\n",x);
         for(int y=0;y<h;y++){
             for(int z=0;z<l;z++){
-                chunks[x][y][z]=new chunk_obj(2,  //texture
+                chunks[x][y][z]=new chunk_obj(3,  //texture
                                                0,  //program
                                                1,  //ObjID (not needed)
                                                glm::vec3((x-d)*16,(y-dh)*16,(z-dl)*16), //position
@@ -253,6 +254,8 @@ void gl_main::loadObjects()
             }
         }
     }
+    //chunks[0][0][0]->refresh_chunk();
+    //chunks[0][0][0]->refresh_chunk();
     printf("TO");
 
     for(int i=0;i<b*16;i++){
@@ -289,6 +292,8 @@ void gl_main::paint()
     //ausrichten skycube
     float scale= objects[skycubeID]->get_scale();
     objects[skycubeID]->move(glm::vec3((getCamPos().x-lastCamPos.x)/scale,(getCamPos().y-lastCamPos.y)/scale,(getCamPos().z-lastCamPos.z)/scale));
+
+    move_chunks();
 
     lastCamPos=getCamPos();
 
@@ -332,6 +337,7 @@ void gl_main::paint()
                 glBindBuffer(GL_ARRAY_BUFFER, shapes[shapeID]->get_normalbuffer());
                 glVertexAttribPointer(2,3,GL_FLOAT,GL_FALSE,0,0);
                 glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, shapes[shapeID]->get_elementbuffer());
+                //glVertexAttribPointer(2,3,GL_FLOAT,GL_FALSE,0,0);
             }
         }
 
@@ -369,7 +375,10 @@ void gl_main::paint()
 
                 if(TextureID != chunks[x][y][z]->get_TextureID()){
                     TextureID = chunks[x][y][z]->get_TextureID();
-                    glBindTexture(GL_TEXTURE_2D, Textures[TextureID]);
+                    glActiveTexture(GL_TEXTURE0);
+                    glBindTexture(GL_TEXTURE_2D, Textures[3]);
+                    glActiveTexture(GL_TEXTURE1);
+                    glBindTexture(GL_TEXTURE_2D, Textures[4]);
                     glUniform1i(TextureSamplerIDs[prog], 0);
                 }
 
@@ -444,6 +453,7 @@ void gl_main::measure_speed()
         // printf and reset
         //printf("%f ms/frame\n", 1000.0/double(nbFrames));
         printf("FPS %i = %f ms/frame\n", nbFrames, 1000.0/double(nbFrames));
+        printf("%f %f %f\n",getCamPos().x,getCamPos().y,getCamPos().z);
         nbFrames = 0;
         lastTime += 1.0;
     }
@@ -476,6 +486,284 @@ void gl_main::clean()
 
     // Close OpenGL window and terminate GLFW
     glfwTerminate();
+}
+
+void gl_main::move_chunks()
+{
+    /*
+     * prufen ob aus chunk herausbewegt mit map_pos und getCamPos() (übergang bei 8/-8)
+     * zB verschiebung der ersten reihe nach hinten, notiz in map_border
+     * neuverlinkung der chunks
+     * später: neuladen chunkinhalt
+     * neulader der vorherigen und neuen border chunks
+    */
+    /*
+    printf("%f %f %f\n",getCamPos().x,getCamPos().y,getCamPos().z);
+    int chunk_sizes[3]={18,18,18};
+    int map_border[3]={0,0,0};
+    int map_pos[3]={0,0,0};
+    chunk_obj* chunks[18][18][18];
+    */
+
+    float dx=chunk_sizes[0]/2-0.5f;
+    float dy=chunk_sizes[1]/2-0.5f;
+    float dz=chunk_sizes[2]/2-0.5f;
+
+    bool relode=false;
+
+    if(getCamPos().x-map_pos[0]>8){//wenn in pos. xRichtung bewegt
+        //int x=map_border[0];
+        for(int y=0; y< chunk_sizes[1]; y++){
+            for(int z=0; z< chunk_sizes[2]; z++){
+                //bewege chunks auf andere seite
+                chunks[map_border[0]][(y+map_border[1])%chunk_sizes[1]][(z+map_border[2])%chunk_sizes[2]]->replace_to(
+                            glm::vec3(
+                                (chunk_sizes[0]-dx)*16+map_pos[0],
+                                (y-dy)*16+map_pos[1],
+                                (z-dz)*16+map_pos[2]
+                            )
+                        );
+                //aufheben verlinkung
+                chunks[map_border[0]][y][z]->del_neighbor(3);
+                chunks[(map_border[0]+1)%chunk_sizes[0]][y][z]->del_neighbor(1);
+                //neu verlinkung
+                int x_1 = (map_border[0]+chunk_sizes[0]-1)%chunk_sizes[0];
+                chunks[map_border[0]][y][z]->set_neighbor(chunks[x_1][y][z],1);
+                chunks[x_1][y][z]->set_neighbor(chunks[map_border[0]][y][z],3);
+                //blocke neu laden
+                //...
+                //neuladen
+                //FIX:PERFORMANCE: nur seiten neu laden
+                if(relode){
+                    chunks[ map_border[0]                  ][y][z]->refresh_chunk();
+                    chunks[(map_border[0]+1)%chunk_sizes[0]][y][z]->refresh_chunk();
+                    chunks[x_1][y][z]->refresh_chunk();
+                }
+                //ist in dieser Reihenfloge nur möglich,
+                //da das neuladen nur abhangig von der verlinkung ist, nicht von der pos
+            }
+        }
+        //printf("FIX3\n");
+        map_border[0]=(map_border[0]+1)%chunk_sizes[0];
+        map_pos[0]+=16;
+    }
+    else if(getCamPos().x-map_pos[0]<-8){//wenn in neg. xRichtung bewegt
+        //int x=map_border[0];
+        for(int y=0; y< chunk_sizes[1]; y++){
+            for(int z=0; z< chunk_sizes[2]; z++){
+                //bewege chunks auf andere seite
+                int x=(map_border[0]+chunk_sizes[0]-1)%chunk_sizes[0];
+                chunks[x][(y+map_border[1])%chunk_sizes[1]][(z+map_border[2])%chunk_sizes[2]]->replace_to(
+                            glm::vec3(
+                                (-1-dx)*16+map_pos[0],
+                                (y-dy)*16+map_pos[1],
+                                (z-dz)*16+map_pos[2]
+                            )
+                        );
+                //aufheben verlinkung
+                chunks[x][y][z]->del_neighbor(1);
+                int x2=(map_border[0]+chunk_sizes[0]-2)%chunk_sizes[0];
+                chunks[x2][y][z]->del_neighbor(3);
+                //neu verlinkung
+                int x_1 = (map_border[0]+1)%chunk_sizes[0];
+                chunks[x][y][z]->set_neighbor(chunks[x_1][y][z],3);
+                chunks[x_1][y][z]->set_neighbor(chunks[x][y][z],1);
+                //blocke neu laden
+                //...
+                //neuladen
+                //FIX:PERFORMANCE: nur seiten neu laden
+                if(relode){
+                    chunks[  x][y][z]->refresh_chunk();
+                    chunks[ x2][y][z]->refresh_chunk();
+                    chunks[x_1][y][z]->refresh_chunk();
+                }
+                //ist in dieser Reihenfloge nur möglich,
+                //da das neuladen nur abhangig von der verlinkung ist, nicht von der pos
+            }
+        }
+        //printf("FIX3\n");
+        map_border[0]=(map_border[0]-1+chunk_sizes[0])%chunk_sizes[0];
+        map_pos[0]-=16;
+    }
+
+    //#y
+
+    if(getCamPos().y-map_pos[1]>8){//wenn in pos. yRichtung bewegt
+        for(int x=0; x< chunk_sizes[0]; x++){
+            for(int z=0; z< chunk_sizes[2]; z++){
+                //bewege chunks auf andere seite
+                int y=map_border[1];
+
+                chunks[(x+map_border[0])%chunk_sizes[0]][y][(z+map_border[2])%chunk_sizes[2]]->replace_to(
+                            glm::vec3(
+                                (             x-dx)*16+map_pos[0],
+                                (chunk_sizes[1]-dy)*16+map_pos[1],
+                                (             z-dz)*16+map_pos[2]
+                            )
+                        );
+                //aufheben verlinkung
+                int y2=(y+1)%chunk_sizes[1];
+                chunks[x][ y][z]->del_neighbor(4);
+                chunks[x][y2][z]->del_neighbor(5);
+                //neu verlinkung
+                int y_1 = (map_border[1]+chunk_sizes[1]-1)%chunk_sizes[1];
+                chunks[x][  y][z]->set_neighbor(chunks[x][y_1][z],5);
+                chunks[x][y_1][z]->set_neighbor(chunks[x][  y][z],4);
+                //blocke neu laden
+                //...
+                //neuladen
+                //FIX:PERFORMANCE: nur seiten neu laden
+                if(relode){
+                    chunks[x][  y][z]->refresh_chunk();
+                    chunks[x][ y2][z]->refresh_chunk();
+                    chunks[x][y_1][z]->refresh_chunk();
+                }
+                //ist in dieser Reihenfloge nur möglich,
+                //da das neuladen nur abhangig von der verlinkung ist, nicht von der pos
+            }
+        }
+        //printf("FIX3\n");
+        map_border[1]=(map_border[1]+1)%chunk_sizes[1];
+        map_pos[1]+=16;
+    }
+    else if(getCamPos().y-map_pos[1]<-8){//wenn in neg. yRichtung bewegt
+        //int x=map_border[0];
+        for(int x=0; x< chunk_sizes[0]; x++){
+            for(int z=0; z< chunk_sizes[2]; z++){
+                //bewege chunks auf andere seite
+                int y=(map_border[1]+chunk_sizes[1]-1)%chunk_sizes[1];
+                chunks[(x+map_border[0])%chunk_sizes[0]][y][(z+map_border[2])%chunk_sizes[2]]->replace_to(
+                            glm::vec3(
+                                (x-dx)*16+map_pos[0],
+                                (-1-dy)*16+map_pos[1],
+                                (z-dz)*16+map_pos[2]
+                            )
+                        );
+                //aufheben verlinkung
+                int y2=(map_border[1]+chunk_sizes[1]-2)%chunk_sizes[1];
+                chunks[x][ y][z]->del_neighbor(5);
+                chunks[x][y2][z]->del_neighbor(4);
+                //neu verlinkung
+                int y_1 = (map_border[1]+1)%chunk_sizes[1];
+                chunks[x][  y][z]->set_neighbor(chunks[x][y_1][z],4);
+                chunks[x][y_1][z]->set_neighbor(chunks[x][  y][z],5);
+                //blocke neu laden
+                //...
+                //neuladen
+                //FIX:PERFORMANCE: nur seiten neu laden
+                if(relode){
+                    chunks[x][  y][z]->refresh_chunk();
+                    chunks[x][ y2][z]->refresh_chunk();
+                    chunks[x][y_1][z]->refresh_chunk();
+                }
+                //ist in dieser Reihenfloge nur möglich,
+                //da das neuladen nur abhangig von der verlinkung ist, nicht von der pos
+            }
+        }
+        //printf("FIX3\n");
+        map_border[1]=(map_border[1]-1+chunk_sizes[1])%chunk_sizes[1];
+        map_pos[1]-=16;
+    }
+
+    //#z
+
+    if(getCamPos().z-map_pos[2]>8){//wenn in pos. zRichtung bewegt
+        for(int x=0; x< chunk_sizes[0]; x++){
+            for(int y=0; y< chunk_sizes[1]; y++){
+                //bewege chunks auf andere seite
+                int z=map_border[2];
+
+                chunks[(x+map_border[0])%chunk_sizes[0]][(y+map_border[1])%chunk_sizes[1]][z]->replace_to(
+                            glm::vec3(
+                                (             x-dx)*16+map_pos[0],
+                                (             y-dy)*16+map_pos[1],
+                                (chunk_sizes[2]-dz)*16+map_pos[2]
+                            )
+                        );
+                //aufheben verlinkung
+                int z2=(z+1)%chunk_sizes[2];
+                chunks[x][y][z]->del_neighbor(2);
+                chunks[x][y][z2]->del_neighbor(0);
+                //neu verlinkung
+                int z_1 = (map_border[2]+chunk_sizes[2]-1)%chunk_sizes[2];
+                chunks[x][y][  z]->set_neighbor(chunks[x][y][z_1],0);
+                chunks[x][y][z_1]->set_neighbor(chunks[x][y][  z],2);
+                //blocke neu laden
+                //...
+                //neuladen
+                //FIX:PERFORMANCE: nur seiten neu laden
+                if(relode){
+                    chunks[x][y][  z]->refresh_chunk();
+                    chunks[x][y][ z2]->refresh_chunk();
+                    chunks[x][y][z_1]->refresh_chunk();
+                }
+                //ist in dieser Reihenfloge nur möglich,
+                //da das neuladen nur abhangig von der verlinkung ist, nicht von der pos
+            }
+        }
+        //printf("FIX3\n");
+        map_border[2]=(map_border[2]+1)%chunk_sizes[2];
+        map_pos[2]+=16;
+    }
+    else if(getCamPos().z-map_pos[2]<-8){//wenn in neg. zRichtung bewegt
+        for(int x=0; x< chunk_sizes[0]; x++){
+            for(int y=0; y< chunk_sizes[1]; y++){
+                //bewege chunks auf andere seite
+                int z=(map_border[2]+chunk_sizes[2]-1)%chunk_sizes[2];
+                chunks[(x+map_border[0])%chunk_sizes[0]][(y+map_border[1])%chunk_sizes[1]][z]->replace_to(
+                            glm::vec3(
+                                (x-dx)*16+map_pos[0],
+                                (y-dy)*16+map_pos[1],
+                                (-1-dz)*16+map_pos[2]
+                            )
+                        );
+                //aufheben verlinkung
+                int z2=(map_border[2]+chunk_sizes[2]-2)%chunk_sizes[2];
+                chunks[x][y][z]->del_neighbor(0);
+                chunks[x][y][z2]->del_neighbor(2);
+                //neu verlinkung
+                int z_1 = (map_border[2]+1)%chunk_sizes[2];
+                chunks[x][y][  z]->set_neighbor(chunks[x][y][z_1],2);
+                chunks[x][y][z_1]->set_neighbor(chunks[x][y][  z],0);
+                //blocke neu laden
+                //...
+                //neuladen
+                //FIX:PERFORMANCE: nur seiten neu laden
+                if(relode){
+                    chunks[x][y][  z]->refresh_chunk();
+                    chunks[x][y][ z2]->refresh_chunk();
+                    chunks[x][y][z_1]->refresh_chunk();
+                }
+                //ist in dieser Reihenfloge nur möglich,
+                //da das neuladen nur abhangig von der verlinkung ist, nicht von der pos
+            }
+        }
+        //printf("FIX3\n");
+        map_border[2]=(map_border[2]-1+chunk_sizes[2])%chunk_sizes[2];
+        map_pos[2]-=16;
+    }
+    /*
+    if(x>0){
+        chunks[x][y][z]->set_neighbor(chunks[x-1][y][z],1);
+        chunks[x-1][y][z]->set_neighbor(chunks[x][y][z],3);
+    }
+    if(y>0){
+        chunks[x][y][z]->set_neighbor(chunks[x][y-1][z],5);
+        chunks[x][y-1][z]->set_neighbor(chunks[x][y][z],4);
+    }
+    if(z>0){
+        chunks[x][y][z]->set_neighbor(chunks[x][y][z-1],0);
+        chunks[x][y][z-1]->set_neighbor(chunks[x][y][z],2);
+    }
+
+
+                float dx=chunk_sizes[0]/2-0.5f;
+                float dy=chunk_sizes[1]/2-0.5f;
+                float dz=chunk_sizes[2]/2-0.5f;
+
+    glm::vec3((x-dx)*16,(y-dy)*16,(z-dz)*16), //position
+    */
+
 }
 
 

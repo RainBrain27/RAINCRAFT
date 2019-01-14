@@ -79,26 +79,45 @@ void chunk::fill_buffers()
     repeat_i(buffer_number){
         remove_buffer();
     }
+
     free_short=0;
-    memset(Quad_list,short(-1),16*16*16*6); // fix: bei veranderung quad_list //notwendig???
+    //DANGER| DONT'COPY
+    memset(Quad_list,-1,16*16*16*6*2); // fix: bei veranderung quad_list //notwendig???
+    //warum zur hölle das *2 (ohne wird scheinbar nur die Hälfte neu platziert)
+    //memset schreibt default immer 8 bit bei -1 FF, zwei -1 wird zu FFFF, funktioniert nur für -1
+    /*
+    for(int x=0;x<b;x++){
+        for(int y=0;y<b;y++){
+            for(int z=0;z<b;z++){
+                for(int side=0;side<6;side++){
+                    Quad_list[x][y][z][side]=-1;
+                }
+            }
+        }
+    }
+    */
     new_vertices.clear(); //fix: wenn es pointer auf glm::vec3 ist kann es speicherprobleme geben
     new_uvs.clear();
     new_normals.clear();
     new_indices.clear();
 
-    buffer_number = free_short/max_buffer_size+1;
+
     //blockcheck:
     for(int x=0;x<b;x++){
         for(int y=0;y<b;y++){
             for(int z=0;z<b;z++){
                 check_block2(x, y, z);
-                if(free_short/max_buffer_size+1>buffer_number){
-                }
             }
         }
     }
-    if(free_short%max_buffer_size != 0){
-       paste_in_buffer(free_short/max_buffer_size);
+    if(new_indices.size()>0){
+        if(free_short%max_buffer_size==0){
+            paste_in_buffer(free_short/max_buffer_size-1);
+        }
+        else{
+            paste_in_buffer(free_short/max_buffer_size);
+        }
+
     }
 }
 
@@ -359,7 +378,7 @@ void chunk::give_space(short space)
                             write_quad(x,y,z,side,space);
 
                             free_short-=1;
-                            if(free_short%max_buffer_size==max_buffer_size-1){
+                            if(free_short%max_buffer_size==0){// FIX : funktioniert immer?
                                 remove_buffer();
                             }
 

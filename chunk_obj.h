@@ -18,6 +18,9 @@ public:
     void refresh_chunk();
 
     void set_neighbor(chunk_obj* Nneighbor, int i);
+    void del_neighbor(int i);
+
+    void replace_to(glm::vec3 pos);
 
 private:
     chunk_obj* neighbour[6]={0,0,0,0,0,0};

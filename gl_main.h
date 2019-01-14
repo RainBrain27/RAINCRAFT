@@ -8,6 +8,7 @@
 #include "baseobject.h"
 #include "chunk_obj.h"
 
+
 class gl_main
 {
 public:
@@ -43,8 +44,15 @@ private:
 
      std::vector<baseobject*> objects;
      //std::vector< chunk_obj* > chunks;
-     int chunk_sizes[3]={18,18,18};
-     chunk_obj* chunks[18][18][18];
+     //int chunk_sizes[3]={18,18,18};
+     //chunk_obj* chunks[18][18][18];
+     #define cc 4
+     int chunk_sizes[3]={cc,cc,cc};
+     int map_border[3]={0,0,0};
+     int map_pos[3]={0,0,0};
+     chunk_obj* chunks[cc][cc][cc];
+
+     void move_chunks();
 
      size_t skycubeID;
      glm::vec3 lastCamPos;

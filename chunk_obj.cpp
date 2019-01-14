@@ -40,13 +40,15 @@ void chunk_obj::generate_chunk()
     for(int x=0;x<b;x++){
         for(int y=0;y<b;y++){
             for(int z=0;z<b;z++){
-                if(y<4){
-                    //if( (( (x-8)*(x-8)+(z-8)*(z-8) )*0.03f+(y))<4 ){
-                    if((x-8)*(x-8)*(z-8)<20){
+                //if(y<4){
+                    if( (( (x-8)*(x-8)+(z-8)*(z-8) )*0.03f+(y))<4 ){
+                    //if((x-8)*(x-8)*(z-8)<20){
                     //if(x+y+z==8){
+                    //if((x+y+z)%2==0){
+                    //if(((x-7.5)*(x-7.5)*(z-7.5)*(z-7.5)*(y-7.5)*(y-7.5)<20)){
                         chunk_shape.set_Block_list(x,y,z,ID);
                     }
-                }
+                //}
             }
         }
     }
@@ -67,4 +69,18 @@ void chunk_obj::set_neighbor(chunk_obj *Nneighbor, int i)
 {
     neighbour[i]=Nneighbor;
     shape_neighbour[i]=Nneighbor->get_chunk_shape();
+}
+
+void chunk_obj::del_neighbor(int i)
+{
+    neighbour[i]=0;
+    shape_neighbour[i]=0;
+}
+
+void chunk_obj::replace_to(glm::vec3 pos)
+{
+    //printf("FIX r1\n");
+    move_to(pos);
+    //printf("FIX r2\n");
+    //add blockloading here for replacing
 }
