@@ -43,7 +43,7 @@ private:
     void init_buffers();
     void fill_buffers();
     std::vector<glm::vec3> new_vertices;
-    std::vector<glm::vec2> new_uvs;
+    std::vector<glm::vec3> new_uvs;
     std::vector<glm::vec3> new_normals;
     std::vector<unsigned short> new_indices;
     void check_block2(int x,int y,int z);

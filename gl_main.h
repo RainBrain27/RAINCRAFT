@@ -19,11 +19,14 @@ private:
     void initialize_libs();
     void loadIDs();
     void loadObjects();
+    void actions();
+    void playercolision();
     void paint();
     void measure_speed();
     void create_shapes();
     void loadTextures();
     void clean();
+    void move_chunks();
 
 private:
      GLuint VertexArrayID;
@@ -34,7 +37,7 @@ private:
      std::vector<GLint> ModelMatrixIDs;
      std::vector<GLint> TextureSamplerIDs;
      std::vector<GLint> LightIDs;
-
+    GLint TextureArraySampler;
 
 private:
 
@@ -46,13 +49,13 @@ private:
      //std::vector< chunk_obj* > chunks;
      //int chunk_sizes[3]={18,18,18};
      //chunk_obj* chunks[18][18][18];
-     #define cc 4
+     #define cc 8
      int chunk_sizes[3]={cc,cc,cc};
      int map_border[3]={0,0,0};
      int map_pos[3]={0,0,0};
      chunk_obj* chunks[cc][cc][cc];
 
-     void move_chunks();
+
 
      size_t skycubeID;
      glm::vec3 lastCamPos;
@@ -61,6 +64,9 @@ private:
      double lastTime;
      int nbFrames;
 
+private:
+     glm::vec3 PlayerSize  = glm::vec3(0.6,1.8,0.8);
+     glm::vec3 PlayerEyePos= glm::vec3(0.3,1.6,0.4);
 };
 
 #endif // GL_MAIN_H

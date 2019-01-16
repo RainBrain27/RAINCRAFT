@@ -1,7 +1,7 @@
 #version 330 core
 
 // Interpolated values from the vertex shaders
-in vec2 UV;
+in vec3 UV;
 in vec3 Position_worldspace;
 in vec3 Normal_cameraspace;
 in vec3 EyeDirection_cameraspace;
@@ -11,7 +11,7 @@ in vec3 LightDirection_cameraspace;
 out vec4 color;
 
 // Values that stay constant for the whole mesh.
-uniform sampler2D myTextureSampler;
+uniform sampler2DArray myTextureArraySampler;
 uniform mat4 MV;
 uniform vec3 LightPosition_worldspace;
 
@@ -24,9 +24,8 @@ void main(){
 	
 	// Material properties
 	
-	
-	vec3 MaterialDiffuseColor = texture( myTextureSampler, UV ).rgb;
-	float a=texture( myTextureSampler, UV ).a;
+	vec3 MaterialDiffuseColor = texture( myTextureArraySampler, UV ).rgb;
+	float a=texture( myTextureArraySampler, UV ).a;
 	vec3 MaterialAmbientColor = vec3(0.2,0.2,0.2) * MaterialDiffuseColor;
 	vec3 MaterialSpecularColor = vec3(0.1,0.1,0.1);
 
@@ -64,4 +63,7 @@ void main(){
 
 	//color.a = 1.00;
 	color.a=a;
+	//float rekt=color.r;
+	//color.r=color.b;
+	//color.b=rekt;
 }

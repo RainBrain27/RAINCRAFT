@@ -25,7 +25,7 @@ using namespace glm;
 #include "vboindexer.hpp"
 
 #include "chunk.h"
-
+#
 void APIENTRY DebugOutputCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam){
 
     printf("OpenGL Debug Output message : ");
@@ -144,6 +144,14 @@ void gl_main::loadIDs()
         TextureSamplerIDs.push_back(glGetUniformLocation(programIDs[i], "myTextureSampler"));
         LightIDs.push_back(glGetUniformLocation(programIDs[i], "LightPosition_worldspace"));
     }
+    vertexpaths.push_back("shaders/ChunkShading.vertexshader");fragmentpaths.push_back("shaders/ChunkShading.fragmentshader");//fur chunks
+    size_t i=vertexpaths.size()-1;
+    programIDs.push_back(LoadShaders( vertexpaths[i], fragmentpaths[i] ));
+    MatrixIDs.push_back(glGetUniformLocation(programIDs[i], "P")); //change name
+    ViewMatrixIDs.push_back(glGetUniformLocation(programIDs[i], "V"));
+    ModelMatrixIDs.push_back(glGetUniformLocation(programIDs[i], "M"));
+    TextureArraySampler = glGetUniformLocation(programIDs[i], "myTextureArraySampler");
+    LightIDs.push_back(glGetUniformLocation(programIDs[i], "LightPosition_worldspace"));
 }
 
 void gl_main::create_shapes()
@@ -171,8 +179,14 @@ void gl_main::loadTextures()
     Textures.push_back(loadDDS("textures/uvmap.DDS",false));
     Textures.push_back(loadDDS("textures/rathalos1.DDS",false));
     Textures.push_back(loadDDS("textures/skycube.DDS",true));
-    Textures.push_back(loadDDS("textures/grass_block.DDS",true));
     Textures.push_back(loadDDS("textures/crafting_table.DDS",true));
+    Textures.push_back(loadBMP_custom("textures/grass_block.bmp"));
+
+    std::vector<const char *> imgpaths;
+    imgpaths.push_back("textures/crafting_table.bmp");
+    imgpaths.push_back("textures/grass_block.bmp");
+    imgpaths.push_back("textures/skywood.bmp");
+    Textures.push_back(loadBMP_array(imgpaths));
 
 }
 
@@ -205,16 +219,16 @@ void gl_main::loadObjects()
     int h=chunk_sizes[1];
     int l=chunk_sizes[2];
 
-    float d=b/2-0.5f;
-    float dh=h/2-0.5f;
-    float dl=l/2-0.5f;
+    float d=b/2.0;
+    float dh=h/2.0;
+    float dl=l/2.0;
 
     for(int x=0;x<b;x++){
         printf("%i\n",x);
         for(int y=0;y<h;y++){
             for(int z=0;z<l;z++){
                 chunks[x][y][z]=new chunk_obj(3,  //texture
-                                               0,  //program
+                                               2,  //program
                                                1,  //ObjID (not needed)
                                                glm::vec3((x-d)*16,(y-dh)*16,(z-dl)*16), //position
                                                cube_indices,
@@ -275,7 +289,72 @@ void gl_main::loadObjects()
     }
     printf("DIE");
 
+//    int x=0;
+//    int y=1.7;
+//    int z=0;
+//    x+=chunk_sizes[0]/2.0*16;
+//    y+=chunk_sizes[1]/2.0*16;
+//    z+=chunk_sizes[2]/2.0*16;
 
+//    chunks[(x)/16][(y)/16][(z)/16]->change_block(x%16,y%16,z%16,2);
+
+
+}
+
+void gl_main::actions()
+{
+    computeMatricesFromInputs();
+    //ausrichten skycube
+    float scale= objects[skycubeID]->get_scale();
+    objects[skycubeID]->move(glm::vec3(
+                                 (getCamPos().x-lastCamPos.x)/scale,
+                                 (getCamPos().y-lastCamPos.y)/scale,
+                                 (getCamPos().z-lastCamPos.z)/scale));
+    move_chunks();
+
+    playercolision();
+
+    lastCamPos=getCamPos();
+}
+
+void gl_main::playercolision()
+{
+    glm::vec3 newCamPos = getCamPos();
+    //lastCamPos
+    glm::vec3 newMin=newCamPos-PlayerEyePos;
+    glm::vec3 newMax=newMin+PlayerSize;
+    glm::vec3 lastMin=lastCamPos-PlayerEyePos;
+    glm::vec3 lastMax=lastMin+PlayerSize;
+    glm::vec3 absolMin=glm::vec3(
+                std::min(newMin.x,lastMin.x),
+                std::min(newMin.y,lastMin.y),
+                std::min(newMin.z,lastMin.z));
+    glm::vec3 absolMax=glm::vec3(
+                std::max(newMax.x,lastMax.x),
+                std::max(newMax.y,lastMax.y),
+                std::max(newMax.z,lastMax.z));
+    glm::vec3 chunkPos=glm::vec3(chunk_sizes[0]/2.0*16,chunk_sizes[1]/2.0*16,chunk_sizes[2]/2.0*16);
+    absolMax+=chunkPos;
+    absolMin+=chunkPos;
+
+    for(int x=absolMin.x;x<=absolMax.x;x++){
+        for(int y=absolMin.y;y<=absolMax.y;y++){
+            for(int z=absolMin.z;z<=absolMax.z;z++){
+                if(chunks[x/16][y/16][z/16]->get_block(x%16,y%16,z%16)!=-1){
+                    printf("colision\n");
+                }
+            }
+        }
+    }
+
+//    int x=0;
+//    int y=1.7;
+//    int z=0;
+//    x+=chunk_sizes[0]/2.0*16;
+//    y+=chunk_sizes[1]/2.0*16;
+//    z+=chunk_sizes[2]/2.0*16;
+
+//    chunks[(x)/16][(y)/16][(z)/16]->change_block(x%16,y%16,z%16,2);
 }
 
 void gl_main::paint()
@@ -284,19 +363,10 @@ void gl_main::paint()
     // Clear the screen
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    computeMatricesFromInputs();
+    actions();
 
     glm::mat4 ProjectionMatrix = getProjectionMatrix(); //evt. schon vorher multipiziren, nicht erst in shadern...
     glm::mat4 ViewMatrix = getViewMatrix();
-
-    //ausrichten skycube
-    float scale= objects[skycubeID]->get_scale();
-    objects[skycubeID]->move(glm::vec3((getCamPos().x-lastCamPos.x)/scale,(getCamPos().y-lastCamPos.y)/scale,(getCamPos().z-lastCamPos.z)/scale));
-
-    move_chunks();
-
-    lastCamPos=getCamPos();
-
     glm::mat4 ModelMatrix;
     glm::vec3 lightPos  = glm::vec3(objects[skycubeID]->get_ModelMatrix() * glm::vec4(-11.5f,22.0f,8.5f,1));
 
@@ -375,11 +445,13 @@ void gl_main::paint()
 
                 if(TextureID != chunks[x][y][z]->get_TextureID()){
                     TextureID = chunks[x][y][z]->get_TextureID();
-                    glActiveTexture(GL_TEXTURE0);
-                    glBindTexture(GL_TEXTURE_2D, Textures[3]);
-                    glActiveTexture(GL_TEXTURE1);
-                    glBindTexture(GL_TEXTURE_2D, Textures[4]);
-                    glUniform1i(TextureSamplerIDs[prog], 0);
+                    //glActiveTexture(GL_TEXTURE0);
+                    //glBindTexture(GL_TEXTURE_2D, Textures[3]);
+                    //glActiveTexture(GL_TEXTURE1);
+                    //glBindTexture(GL_TEXTURE_2D, Textures[4]);
+                    //glActiveTexture(GL_TEXTURE0);
+                    glBindTexture(GL_TEXTURE_2D_ARRAY, Textures[5]);
+                    glUniform1i(TextureArraySampler, 0);
                 }
 
                 shape_ptr=chunks[x][y][z]->get_chunk_shape();
@@ -397,7 +469,7 @@ void gl_main::paint()
                         glBindBuffer(GL_ARRAY_BUFFER, vertexbuffers[buffer_number]);
                         glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,0,0);
                         glBindBuffer(GL_ARRAY_BUFFER, uvbuffers[buffer_number]);
-                        glVertexAttribPointer(1,2,GL_FLOAT,GL_FALSE,0,0);
+                        glVertexAttribPointer(1,3,GL_FLOAT,GL_FALSE,0,0);
                         glBindBuffer(GL_ARRAY_BUFFER, normalbuffers[buffer_number]);
                         glVertexAttribPointer(2,3,GL_FLOAT,GL_FALSE,0,0);
                         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementbuffers[buffer_number]);
@@ -505,13 +577,13 @@ void gl_main::move_chunks()
     chunk_obj* chunks[18][18][18];
     */
 
-    float dx=chunk_sizes[0]/2-0.5f;
-    float dy=chunk_sizes[1]/2-0.5f;
-    float dz=chunk_sizes[2]/2-0.5f;
+    float dx=chunk_sizes[0]/2.0;
+    float dy=chunk_sizes[1]/2.0;
+    float dz=chunk_sizes[2]/2.0;
 
     bool relode=false;
 
-    if(getCamPos().x-map_pos[0]>8){//wenn in pos. xRichtung bewegt
+    if(getCamPos().x-map_pos[0]>8*4){//wenn in pos. xRichtung bewegt
         //int x=map_border[0];
         for(int y=0; y< chunk_sizes[1]; y++){
             for(int z=0; z< chunk_sizes[2]; z++){
@@ -547,7 +619,7 @@ void gl_main::move_chunks()
         map_border[0]=(map_border[0]+1)%chunk_sizes[0];
         map_pos[0]+=16;
     }
-    else if(getCamPos().x-map_pos[0]<-8){//wenn in neg. xRichtung bewegt
+    else if(getCamPos().x-map_pos[0]<-8*4){//wenn in neg. xRichtung bewegt
         //int x=map_border[0];
         for(int y=0; y< chunk_sizes[1]; y++){
             for(int z=0; z< chunk_sizes[2]; z++){
@@ -588,7 +660,7 @@ void gl_main::move_chunks()
 
     //#y
 
-    if(getCamPos().y-map_pos[1]>8){//wenn in pos. yRichtung bewegt
+    if(getCamPos().y-map_pos[1]>8*4){//wenn in pos. yRichtung bewegt
         for(int x=0; x< chunk_sizes[0]; x++){
             for(int z=0; z< chunk_sizes[2]; z++){
                 //bewege chunks auf andere seite
@@ -626,7 +698,7 @@ void gl_main::move_chunks()
         map_border[1]=(map_border[1]+1)%chunk_sizes[1];
         map_pos[1]+=16;
     }
-    else if(getCamPos().y-map_pos[1]<-8){//wenn in neg. yRichtung bewegt
+    else if(getCamPos().y-map_pos[1]<-8*4){//wenn in neg. yRichtung bewegt
         //int x=map_border[0];
         for(int x=0; x< chunk_sizes[0]; x++){
             for(int z=0; z< chunk_sizes[2]; z++){
@@ -667,7 +739,7 @@ void gl_main::move_chunks()
 
     //#z
 
-    if(getCamPos().z-map_pos[2]>8){//wenn in pos. zRichtung bewegt
+    if(getCamPos().z-map_pos[2]>8*4){//wenn in pos. zRichtung bewegt
         for(int x=0; x< chunk_sizes[0]; x++){
             for(int y=0; y< chunk_sizes[1]; y++){
                 //bewege chunks auf andere seite
@@ -705,7 +777,7 @@ void gl_main::move_chunks()
         map_border[2]=(map_border[2]+1)%chunk_sizes[2];
         map_pos[2]+=16;
     }
-    else if(getCamPos().z-map_pos[2]<-8){//wenn in neg. zRichtung bewegt
+    else if(getCamPos().z-map_pos[2]<-8*4){//wenn in neg. zRichtung bewegt
         for(int x=0; x< chunk_sizes[0]; x++){
             for(int y=0; y< chunk_sizes[1]; y++){
                 //bewege chunks auf andere seite
