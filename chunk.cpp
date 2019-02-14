@@ -1,4 +1,6 @@
 #include "chunk.h"
+#include "gl_main.h"
+
 #include "common/objloader.hpp"
 #include "common/vboindexer.hpp"
 
@@ -72,10 +74,11 @@ void chunk::init_buffers()
 void chunk::fill_buffers()
 {
     int b=16;
-    int buffer_number = free_short/max_buffer_size+1; //anzahl der buffer
+    int buffer_number = free_short/max_buffer_size+1; //anzahl der buffer //auch mit .size() ...
     if(free_short%max_buffer_size==0){
         buffer_number-=1;
     }
+
     repeat_i(buffer_number){
         remove_buffer();
     }
@@ -471,16 +474,18 @@ void chunk::init_lists()
 
 void chunk::add_buffer()
 {
-    int vertex_buffer_size=max_buffer_size*4;//vektoren
-    int element_buffer_size=max_buffer_size*6;//ecken elemente
+    //int vertex_buffer_size=max_buffer_size*4;//vektoren
+    //int element_buffer_size=max_buffer_size*6;//ecken elemente
 
-    size_t buffer_number = vertexbuffers.size();
+    //size_t buffer_number = vertexbuffers.size();
     //size changes here
-    vertexbuffers.push_back(0);
-    uvbuffers.push_back(0);
-    normalbuffers.push_back(0);
-    elementbuffers.push_back(0);
 
+    _GLuint4back buffers = LINUX->get_chunk_buffer();
+    vertexbuffers.push_back(buffers.i0);
+    uvbuffers.push_back(buffers.i1);
+    normalbuffers.push_back(buffers.i2);
+    elementbuffers.push_back(buffers.i3);
+    /*
     glGenBuffers(1, &vertexbuffers[buffer_number]);
     glBindBuffer(GL_ARRAY_BUFFER, vertexbuffers[buffer_number]);
     glBufferData(GL_ARRAY_BUFFER, vertex_buffer_size * sizeof(glm::vec3), 0, GL_STATIC_DRAW);
@@ -496,18 +501,20 @@ void chunk::add_buffer()
     glGenBuffers(1, &elementbuffers[buffer_number]);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementbuffers[buffer_number]);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, element_buffer_size * sizeof(unsigned short), 0, GL_STATIC_DRAW);
-
+     */
 }
 
 void chunk::remove_buffer()
 {
-    size_t buffer_number = vertexbuffers.size()-1;
-    if(buffer_number>=0){
-        glDeleteBuffers(1, &vertexbuffers[buffer_number]);
-        glDeleteBuffers(1, &uvbuffers[buffer_number]);
-        glDeleteBuffers(1, &normalbuffers[buffer_number]);
-        glDeleteBuffers(1, &elementbuffers[buffer_number]);
+    size_t buffer_number = vertexbuffers.size();
+    if(buffer_number>0){
+        LINUX->return_chunk_buffer({
+                                       vertexbuffers.back(),
+                                       uvbuffers.back(),
+                                       normalbuffers.back(),
+                                       elementbuffers.back()
 
+                                   });
         vertexbuffers.pop_back();
         uvbuffers.pop_back();
         normalbuffers.pop_back();

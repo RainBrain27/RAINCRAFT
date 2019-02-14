@@ -4,6 +4,9 @@
 #include "chunk.h"
 #include "baseobject.h"
 
+
+class gl_main;
+
 class chunk_obj : public baseobject
 {
 public:
@@ -11,7 +14,8 @@ public:
               std::vector<unsigned short> cube_indices,
               std::vector<glm::vec3> cube_indexed_vertices,
               std::vector<glm::vec2> cube_indexed_uvs,
-              std::vector<glm::vec3> cube_indexed_normals);
+              std::vector<glm::vec3> cube_indexed_normals,
+              gl_main* LINUX);
     chunk* get_chunk_shape(){return &chunk_shape;}
     void change_block(int x,int y,int z, short ID);
     short get_block(int x,int y,int z){return Block_list[x][y][z];}
@@ -33,6 +37,7 @@ private:
     chunk chunk_shape;
 
     void generate_chunk();
+
 
 };
 

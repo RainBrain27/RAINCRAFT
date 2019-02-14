@@ -88,7 +88,7 @@ void gl_main::initialize_libs()
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, 1);
 
     // Open a window and create its OpenGL context
-    window = glfwCreateWindow( 1024, 768, "RAINCRAFT", NULL, NULL);
+    window = glfwCreateWindow( windowWidth, windowHeight, "RAINCRAFT", NULL, NULL);
     if( window == NULL ){
         fprintf( stderr, "Failed to open GLFW window. If you have an Intel GPU, they are not 3.3 compatible. Try the 2.1 version of the tutorials.\n" );
         getchar();
@@ -112,10 +112,11 @@ void gl_main::initialize_libs()
     glfwSetInputMode(window, GLFW_STICKY_KEYS, GL_TRUE);
     // Hide the mouse and enable unlimited mouvement
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    //glfwSetMouseButtonCallback(window, mouse_button_callback);
 
     // Set the mouse at the center of the screen
     glfwPollEvents();
-    glfwSetCursorPos(window, 1024/2, 768/2);
+    glfwSetCursorPos(window, windowWidth/2, windowHeight/2);
 
     glClearColor(0.0f, 0.0f, 0.4f, 0.0f);
 
@@ -152,6 +153,39 @@ void gl_main::loadIDs()
     ModelMatrixIDs.push_back(glGetUniformLocation(programIDs[i], "M"));
     TextureArraySampler = glGetUniformLocation(programIDs[i], "myTextureArraySampler");
     LightIDs.push_back(glGetUniformLocation(programIDs[i], "LightPosition_worldspace"));
+    ShadowMapID = glGetUniformLocation(programIDs[i], "shadowMap");
+    DepthBiasID = glGetUniformLocation(programIDs[i], "DepthBiasMVP");
+
+    //vertexpaths.push_back("shaders/Cross.vertexshader");fragmentpaths.push_back("shaders/Cross.fragmentshader");//fur chunks
+    CrossShader=LoadShaders("shaders/Cross.vertexshader", "shaders/Cross.fragmentshader");
+
+    depthProgramID=LoadShaders("shaders/DepthRTT.vertexshader", "shaders/DepthRTT.fragmentshader" );
+    depthMatrixID = glGetUniformLocation(depthProgramID, "depthMVP");
+
+
+    glGenFramebuffers(1, &FramebufferName);
+    glBindFramebuffer(GL_FRAMEBUFFER, FramebufferName);
+
+    // Depth texture. Slower than a depth buffer, but you can sample it later in your shader
+
+    glGenTextures(1, &depthTexture);
+    glBindTexture(GL_TEXTURE_2D, depthTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0,GL_DEPTH_COMPONENT16, 1024, 1024, 0,GL_DEPTH_COMPONENT, GL_FLOAT, 0);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
+    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_R_TO_TEXTURE);
+
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, depthTexture, 0);
+
+    // No color output in the bound framebuffer, only depth.
+    glDrawBuffer(GL_NONE);
+
+    // Always check that our framebuffer is ok
+    if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        printf("depth framebuffer failed");
 }
 
 void gl_main::create_shapes()
@@ -219,9 +253,44 @@ void gl_main::loadObjects()
     int h=chunk_sizes[1];
     int l=chunk_sizes[2];
 
-    float d=b/2.0;
-    float dh=h/2.0;
-    float dl=l/2.0;
+
+
+    int bufferCount=b*h*l* 2 ; //vergrossern um mehr platz zu haben, lastet VRAM stark aus (max statt 2 -> 8)
+    //! doesnot  risize atomatcly in clean()
+    //!
+    int max_buffer_size=16*16*2*6; // ein  achtel der maximalen flachen zur speicheroptimierung
+    int vertex_buffer_size=max_buffer_size*4;//vektoren
+    int element_buffer_size=max_buffer_size*6;//ecken elemente
+    //allocate
+
+    chunk_vertex_buffer_stack.resize(bufferCount);
+    chunk_uv_buffer_stack.resize(bufferCount);
+    chunk_normal_buffer_stack.resize(bufferCount);
+    chunk_element_buffer_stack.resize(bufferCount);
+
+    glGenBuffers(bufferCount, &chunk_vertex_buffer_stack[0]);
+    glGenBuffers(bufferCount, &chunk_uv_buffer_stack[0]);
+    glGenBuffers(bufferCount, &chunk_normal_buffer_stack[0]);
+    glGenBuffers(bufferCount, &chunk_element_buffer_stack[0]);
+
+    for(size_t buffer_i=0;buffer_i<bufferCount;buffer_i++){
+        glBindBuffer(GL_ARRAY_BUFFER, chunk_vertex_buffer_stack[buffer_i]);
+        glBufferData(GL_ARRAY_BUFFER, vertex_buffer_size * sizeof(glm::vec3), 0, GL_DYNAMIC_DRAW);
+
+        glBindBuffer(GL_ARRAY_BUFFER, chunk_uv_buffer_stack[buffer_i]);
+        glBufferData(GL_ARRAY_BUFFER, vertex_buffer_size * sizeof(glm::vec3), 0, GL_DYNAMIC_DRAW);
+
+        glBindBuffer(GL_ARRAY_BUFFER, chunk_normal_buffer_stack[buffer_i]);
+        glBufferData(GL_ARRAY_BUFFER, vertex_buffer_size * sizeof(glm::vec3), 0, GL_DYNAMIC_DRAW);
+
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, chunk_element_buffer_stack[buffer_i]);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, element_buffer_size * sizeof(unsigned short), 0, GL_DYNAMIC_DRAW);
+    }
+
+    float d=b/2.0f;
+    float dh=h/2.0f;
+    float dl=l/2.0f;
+
 
     for(int x=0;x<b;x++){
         printf("%i\n",x);
@@ -234,7 +303,8 @@ void gl_main::loadObjects()
                                                cube_indices,
                                                cube_indexed_vertices,
                                                cube_indexed_uvs,
-                                               cube_indexed_normals
+                                               cube_indexed_normals,
+                                               this
                                                );
                 //printf("%i \n",x*b*b+y*b+z);
             }
@@ -289,89 +359,422 @@ void gl_main::loadObjects()
     }
     printf("DIE");
 
-//    int x=0;
-//    int y=1.7;
-//    int z=0;
-//    x+=chunk_sizes[0]/2.0*16;
-//    y+=chunk_sizes[1]/2.0*16;
-//    z+=chunk_sizes[2]/2.0*16;
 
-//    chunks[(x)/16][(y)/16][(z)/16]->change_block(x%16,y%16,z%16,2);
 
+        static const GLfloat g_quad_vertex_buffer_data[] = {
+            -1.0f, -1.0f, 0.0f,
+             1.0f, -1.0f, 0.0f,
+            -1.0f,  1.0f, 0.0f,
+            -1.0f,  1.0f, 0.0f,
+             1.0f, -1.0f, 0.0f,
+             1.0f,  1.0f, 0.0f,
+        };
+
+        glGenBuffers(1, &Screenvertices);
+        glBindBuffer(GL_ARRAY_BUFFER, Screenvertices);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(g_quad_vertex_buffer_data), g_quad_vertex_buffer_data, GL_STATIC_DRAW);
 
 }
 
 void gl_main::actions()
 {
-    computeMatricesFromInputs();
+    computeInputs();
     //ausrichten skycube
+
+    move_chunks();
+
+    playercolision();
+    selectBlock();
+
+    computeMatrices();
+
     float scale= objects[skycubeID]->get_scale();
     objects[skycubeID]->move(glm::vec3(
                                  (getCamPos().x-lastCamPos.x)/scale,
                                  (getCamPos().y-lastCamPos.y)/scale,
                                  (getCamPos().z-lastCamPos.z)/scale));
-    move_chunks();
 
-    playercolision();
 
     lastCamPos=getCamPos();
 }
 
 void gl_main::playercolision()
 {
-    glm::vec3 newCamPos = getCamPos();
-    //lastCamPos
-    glm::vec3 newMin=newCamPos-PlayerEyePos;
-    glm::vec3 newMax=newMin+PlayerSize;
-    glm::vec3 lastMin=lastCamPos-PlayerEyePos;
-    glm::vec3 lastMax=lastMin+PlayerSize;
-    glm::vec3 absolMin=glm::vec3(
-                std::min(newMin.x,lastMin.x),
-                std::min(newMin.y,lastMin.y),
-                std::min(newMin.z,lastMin.z));
-    glm::vec3 absolMax=glm::vec3(
-                std::max(newMax.x,lastMax.x),
-                std::max(newMax.y,lastMax.y),
-                std::max(newMax.z,lastMax.z));
-    glm::vec3 chunkPos=glm::vec3(chunk_sizes[0]/2.0*16,chunk_sizes[1]/2.0*16,chunk_sizes[2]/2.0*16);
-    absolMax+=chunkPos;
-    absolMin+=chunkPos;
 
-    for(int x=absolMin.x;x<=absolMax.x;x++){
-        for(int y=absolMin.y;y<=absolMax.y;y++){
-            for(int z=absolMin.z;z<=absolMax.z;z++){
-                if(chunks[x/16][y/16][z/16]->get_block(x%16,y%16,z%16)!=-1){
-                    printf("colision\n");
+    float t;
+    float dist=999999.0f; //naja
+    short material = -1;
+    glm::vec3 Block=glm::vec3(0,0,0);
+    int cancel =0;
+
+    glm::vec3 v;
+    glm::vec3 absolMin;
+    glm::vec3 absolMax;
+    glm::vec3 newMin;
+    glm::vec3 newMax;
+    glm::vec3 newCamPos;
+
+    glm::vec3 lastMin;
+    glm::vec3 lastMax;
+
+    short mat;
+    float tec;
+    float dist2;
+
+    int side=1;
+
+    float f=+0.00001f;
+    while(side!=-1 and cancel<10){
+        cancel+=1;
+        side=-1;
+        t=1.0;
+
+        newCamPos = getCamPos();
+
+        newMin=newCamPos-glm::vec3(PlayerEyePos[0],PlayerEyePos[1],PlayerEyePos[2]);
+        newMax=newMin+glm::vec3(PlayerSize[0],PlayerSize[1],PlayerSize[2]);
+
+        lastMin=lastCamPos-glm::vec3(PlayerEyePos[0],PlayerEyePos[1],PlayerEyePos[2]);
+        lastMax=lastMin+glm::vec3(PlayerSize[0],PlayerSize[1],PlayerSize[2]);
+
+        absolMin=glm::vec3(
+                    std::min(newMin.x,lastMin.x),
+                    std::min(newMin.y,lastMin.y),
+                    std::min(newMin.z,lastMin.z));
+        absolMax=glm::vec3(
+                    std::max(newMax.x,lastMax.x),
+                    std::max(newMax.y,lastMax.y),
+                    std::max(newMax.z,lastMax.z));
+
+        // 0, 1, 2, 3, 4, 5 z- x- z+ x+ y+ y-
+        // z- x- z+ x+ y+ y-
+
+        v=newMin-lastMin;
+        for(int x=int(std::floor(absolMin.x));x<=std::floor(absolMax.x);x++){
+            for(int y=int(std::floor(absolMin.y));y<=std::floor(absolMax.y);y++){
+                for(int z=int(std::floor(absolMin.z));z<=std::floor(absolMax.z);z++){
+                    mat=getBlockat(x,y,z);
+                    if(mat!=-1){
+                        if(lastMin.y+f>=y+1){if(newMin.y+f<y+1){
+                                tec =((y+1.0f)-lastMin.y)/(v.y);
+                                dist2 = distance(lastMin+glm::vec3(PlayerSize[0]/2,0,PlayerSize[2]/2),glm::vec3(x+0.5,y+1.0,z+0.5));
+                                if(tec<t or (tec+f<t and dist2<dist and side!=-1)){glm::vec3 SP=lastMin+v*tec;
+                                    if(SP.x+f<x+1 and SP.x+PlayerSize[0]>x+f and SP.z+f<z+1 and SP.z+PlayerSize[2]>z+f){
+                                        dist=dist2;
+                                        t=tec;material=mat;
+                                        side=4;//of block
+                                        Block=glm::vec3(x,y,z);
+                        }}}}
+                        if(lastMin.x+f>=x+1){if(newMin.x+f<x+1){
+                                tec =((x+1.0f)-lastMin.x)/(v.x);
+                                dist2 = distance(lastMin+glm::vec3(0,PlayerSize[1]/2,PlayerSize[2]/2),glm::vec3(x+1.0,y+0.5,z+0.5));
+                                if(tec<t or (tec+f<t and dist2<dist and side!=-1)){glm::vec3 SP=lastMin+v*tec;
+                                    if(SP.y+f<y+1 and SP.y+PlayerSize[1]>y+f and SP.z+f<z+1 and SP.z+PlayerSize[2]>z+f){
+                                        dist=dist2;
+                                        t=tec;material=mat;
+                                        side=3;//of block
+                                        Block=glm::vec3(x,y,z);
+                        }}}}
+                        if(lastMin.z+f>=z+1){if(newMin.z+f<z+1){
+                                tec =((z+1.0f)-lastMin.z)/(v.z);
+                                dist2 = distance(lastMin+glm::vec3(PlayerSize[0]/2,PlayerSize[1]/2,0),glm::vec3(x+0.5,y+0.5,z+1.0));
+                                if(tec<t or (tec+f<t and dist2<dist and side!=-1)){glm::vec3 SP=lastMin+v*tec;
+                                    if(SP.x+f<x+1 and SP.x+PlayerSize[0]>x+f and SP.y+f<y+1 and SP.y+PlayerSize[1]>y+f){
+                                        t=tec;material=mat;
+                                        dist=dist2;
+                                        side=2;//of block
+                                        Block=glm::vec3(x,y,z);
+                        }}}}
+
+                        if(lastMax.y<=y+f){if(newMax.y>y+f){
+                                tec =((y)-lastMax.y)/(v.y);
+                                dist2 = distance(lastMin+glm::vec3(PlayerSize[0]/2,PlayerSize[1],PlayerSize[2]/2),glm::vec3(x+0.5,y,z+0.5));
+                                if(tec<t or (tec+f<t and dist2<dist and side!=-1)){glm::vec3 SP=lastMin+v*tec;
+                                    if(SP.x+f<x+1 and SP.x+PlayerSize[0]>x+f and SP.z+f<z+1 and SP.z+PlayerSize[2]>z+f){
+                                        t=tec;material=mat;
+                                        dist=dist2;
+                                        side=5;//of block
+                                        Block=glm::vec3(x,y,z);
+                        }}}}
+                        if(lastMax.x<=x+f){if(newMax.x>x+f){
+                                tec =((x)-lastMax.x)/(v.x);
+                                dist2 = distance(lastMin+glm::vec3(PlayerSize[0],PlayerSize[1]/2,PlayerSize[2]/2),glm::vec3(x,y+0.5,z+0.5));
+                                if(tec<t or (tec+f<t and dist2<dist and side!=-1)){glm::vec3 SP=lastMin+v*tec;
+                                    if(SP.y+f<y+1 and SP.y+PlayerSize[1]>y+f and SP.z+f<z+1 and SP.z+PlayerSize[2]>z+f){
+                                        t=tec;material=mat;
+                                        dist=dist2;
+                                        side=1;//of block
+                                        Block=glm::vec3(x,y,z);
+                        }}}}
+                        if(lastMax.z<=z+f){if(newMax.z>z+f){
+                                tec =((z)-lastMax.z)/(v.z);
+                                dist2 = distance(lastMin+glm::vec3(PlayerSize[0]/2,PlayerSize[1]/2,PlayerSize[2]),glm::vec3(x+0.5,y+0.5,z));
+                                if(tec<t or (tec+f<t and dist2<dist and side!=-1)){glm::vec3 SP=lastMin+v*tec;
+                                    if(SP.x+f<x+1 and SP.x+PlayerSize[0]>x+f and SP.y+f<y+1 and SP.y+PlayerSize[1]>y+f){
+                                        t=tec;material=mat;
+                                        dist=dist2;
+                                        side=0;//of block
+                                        Block=glm::vec3(x,y,z);
+                        }}}}
+                        //printf("colision %i %i %i \n",x,y,z);
+                    }
                 }
             }
         }
+        // 0, 1, 2, 3, 4, 5 z- x- z+ x+ y+ y-
+        // z- x- z+ x+ y+ y-
+        if(side!=-1){
+            if(     side==4){
+                setCamPos(glm::vec3(newCamPos.x,Block.y+1.0f+PlayerEyePos[1]        ,newCamPos.z));
+                stopPlayerFall();
+            }//v.y*t//hardset
+            else if(side==5){setCamPos(glm::vec3(newCamPos.x,Block.y-PlayerSize[1]+PlayerEyePos[1],newCamPos.z));
+                stopPlayerFall();
+
+            }//v.y*t//hardset
+            else if(side==3){setCamPos(glm::vec3(        Block.x+1.0f+PlayerEyePos[0],newCamPos.y,newCamPos.z));}
+            else if(side==1){setCamPos(glm::vec3(Block.x-PlayerSize[0]+PlayerEyePos[0],newCamPos.y,newCamPos.z));}
+            else if(side==2){setCamPos(glm::vec3(newCamPos.x,newCamPos.y,        Block.z+1.0f+PlayerEyePos[2]));}
+            else if(side==0){setCamPos(glm::vec3(newCamPos.x,newCamPos.y,Block.z-PlayerSize[2]+PlayerEyePos[2]));}
+//            printf("%f %f %f === %f %f %f ===%i %i %i %i\n",getCamPos().x,getCamPos().y,getCamPos().z,lastCamPos.x,
+//                   lastCamPos.y,lastCamPos.z,side,getCamPos().x==lastCamPos.x,getCamPos().y==lastCamPos.y,getCamPos().z==lastCamPos.z);
+//            printf("%f %f %f === %f %f %f\n",Block.y-PlayerSize[1]+PlayerEyePos[1],Block.x-PlayerSize[0]+PlayerEyePos[0],Block.z-PlayerSize[2]+PlayerEyePos[2],
+//                    Block.y+1.0f+PlayerEyePos[1],Block.x+1.0f+PlayerEyePos[0],Block.z+1.0f+PlayerEyePos[2]);
+        }
+    }
+//    if(material!=-1){
+//        printf("\n");
+//    }
+    if(cancel==9){
+        printf("colision float bug\n");
     }
 
-//    int x=0;
+    //START
+
+//    int x=0;jhv
 //    int y=1.7;
 //    int z=0;
 //    x+=chunk_sizes[0]/2.0*16;
 //    y+=chunk_sizes[1]/2.0*16;
 //    z+=chunk_sizes[2]/2.0*16;
 
-//    chunks[(x)/16][(y)/16][(z)/16]->change_block(x%16,y%16,z%16,2);
+    //    chunks[(x)/16][(y)/16][(z)/16]->change_block(x%16,y%16,z%16,2);
+}
+
+void gl_main::selectBlock()
+{
+    //catchbox
+    float range=7;
+    glm::vec3 camPositition=getCamPos();
+    glm::vec3 forward=getForward();
+
+    float t=1;
+    glm::vec3 Block=glm::vec3(0,0,0);
+
+    glm::vec3 BLICKCENTER = camPositition;
+    glm::vec3 BLICKZIEL = camPositition+forward*range;
+    glm::vec3 v=BLICKZIEL-BLICKCENTER;
+
+    glm::vec3 absolMin=glm::vec3(
+                std::min(BLICKCENTER.x,BLICKZIEL.x),
+                std::min(BLICKCENTER.y,BLICKZIEL.y),
+                std::min(BLICKCENTER.z,BLICKZIEL.z));
+    glm::vec3 absolMax=glm::vec3(
+                std::max(BLICKCENTER.x,BLICKZIEL.x),
+                std::max(BLICKCENTER.y,BLICKZIEL.y),
+                std::max(BLICKCENTER.z,BLICKZIEL.z));
+
+    int side=-1;
+    int mat;
+    float tec=0;
+
+    float f=+0.00001f;
+
+        // 0, 1, 2, 3, 4, 5 z- x- z+ x+ y+ y-
+        // z- x- z+ x+ y+ y-
+
+        for(int x=int(std::floor(absolMin.x));x<=std::floor(absolMax.x);x++){
+            for(int y=int(std::floor(absolMin.y));y<=std::floor(absolMax.y);y++){
+                for(int z=int(std::floor(absolMin.z));z<=std::floor(absolMax.z);z++){
+                    mat=getBlockat(x,y,z);
+                    if(mat!=-1){
+                        tec =((y+1.0f)-BLICKCENTER.y)/(v.y);
+                        if(tec<t and tec>0){glm::vec3 SP=BLICKCENTER+v*tec;
+                        if(SP.x+f<x+1.0f and SP.x>x+f and SP.z+f<z+1.0f and SP.z>z+f){
+                             t=tec;
+                             side=4;//of block
+                             Block=glm::vec3(x,y,z);
+                        }}
+                                tec =((x+1.0f)-BLICKCENTER.x)/(v.x);
+                                if(tec<t and tec>0){glm::vec3 SP=BLICKCENTER+v*tec;
+                                    if(SP.y+f<y+1.0f and SP.y>y+f and SP.z+f<z+1.0f and SP.z>z+f){
+                                        t=tec;
+                                        side=3;//of block
+                                        Block=glm::vec3(x,y,z);
+                        }}
+                                tec =((z+1.0f)-BLICKCENTER.z)/(v.z);
+                                if(tec<t and tec>0){glm::vec3 SP=BLICKCENTER+v*tec;
+                                    if(SP.x+f<x+1.0f and SP.x>x+f and SP.y+f<y+1.0f and SP.y>y+f){
+                                        t=tec;
+                                        side=2;//of block
+                                        Block=glm::vec3(x,y,z);
+                        }}
+                                tec =((y)-BLICKCENTER.y)/(v.y);
+                                if(tec<t and tec>0){glm::vec3 SP=BLICKCENTER+v*tec;
+                                    if(SP.x+f<x+1.0f and SP.x>x+f and SP.z+f<z+1.0f and SP.z>z+f){
+                                        t=tec;
+                                        side=5;//of block
+                                        Block=glm::vec3(x,y,z);
+                        }}
+                                tec =((x)-BLICKCENTER.x)/(v.x);
+                                if(tec<t and tec>0){glm::vec3 SP=BLICKCENTER+v*tec;
+                                    if(SP.y+f<y+1.0f and SP.y>y+f and SP.z+f<z+1.0f and SP.z>z+f){
+                                        t=tec;
+                                        side=1;//of block
+                                        Block=glm::vec3(x,y,z);
+                        }}
+                                tec =((z)-BLICKCENTER.z)/(v.z);
+                                if(tec<t and tec>0){glm::vec3 SP=BLICKCENTER+v*tec;
+                                    if(SP.x+f<x+1.0f and SP.x>x+f and SP.y+f<y+1.0f and SP.y>y+f){
+                                        t=tec;
+                                        side=0;//of block
+                                        Block=glm::vec3(x,y,z);
+                        }}
+                        //printf("colision %i %i %i \n",x,y,z);
+                    }
+                }
+            }
+        }
+        // 0, 1, 2, 3, 4, 5 z- x- z+ x+ y+ y-
+        // z- x- z+ x+ y+ y-
+    //printf("%i   dirvec:%f %f %f=== %f %f %f ===%f %f %f \n",side,forward.x,forward.y,forward.z,absolMin.x,absolMax.x,absolMin.y,absolMax.y,absolMin.z,absolMax.z);
+
+    if(side!=-1){
+        //printf("here\n");
+        //markBlock();
+        int action=getBlockInteraction();
+        if(action==2){//remove
+            setBlockat(int(std::floor(Block.x)),int(std::floor(Block.y)),int(std::floor(Block.z)),-1);
+        }
+        else if(action==1){
+            if(     side==4){Block.y+=1;}
+            else if(side==5){Block.y-=1;}
+            else if(side==3){Block.x+=1;}
+            else if(side==1){Block.x-=1;}
+            else if(side==2){Block.z+=1;}
+            else if(side==0){Block.z-=1;}
+            setBlockat(int(std::floor(Block.x)),int(std::floor(Block.y)),int(std::floor(Block.z)),1);
+        }
+    }
 }
 
 void gl_main::paint()
 {
 
+    // Render to our framebuffer
+    glBindFramebuffer(GL_FRAMEBUFFER, FramebufferName);
+    glViewport(0,0,1024,1024); // Render on the whole framebuffer, complete from the lower left corner to the upper right
+
+    // We don't use bias in the shader, but instead we draw back faces,
+    // which are already separated from the front faces by a small distance
+    // (if your geometry is made this way)
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK); // Cull back-facing triangles -> draw only front-facing triangles
+
     // Clear the screen
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    actions();
+    // Use our shader
+    glUseProgram(depthProgramID);
+
+    glm::vec3 lightInvDir = glm::vec3(-11.5f,22.0f,8.5f);
+
+    // Compute the MVP matrix from the light's point of view
+    glm::mat4 depthProjectionMatrix = glm::ortho(-16*8.0f,16*8.0f,-16*8.0f,16*8.0f,0.0f,16*16.0f);
+    //glm::mat4 depthProjectionMatrix = glm::ortho<float>(-10,10,-10,10,-10,20);
+    glm::mat4 depthViewMatrix = glm::lookAt(lightInvDir, glm::vec3(0,0,0), glm::vec3(0,1,0));
+    // or, for spot light :
+    //glm::vec3 lightPos(5, 20, 20);
+    //glm::mat4 depthProjectionMatrix = glm::perspective<float>(45.0f, 1.0f, 2.0f, 50.0f);
+    //glm::mat4 depthViewMatrix = glm::lookAt(lightPos, lightPos-lightInvDir, glm::vec3(0,1,0));
+
+    glm::mat4 depthModelMatrix = glm::mat4(1.0);
+    glm::mat4 depthMVP = depthProjectionMatrix * depthViewMatrix * depthModelMatrix;
+
+    // Send our transformation to the currently bound shader,
+    // in the "MVP" uniform
+    glUniformMatrix4fv(depthMatrixID, 1, GL_FALSE, &depthMVP[0][0]);
+
+    size_t shapeID      = 100000;
+    for(size_t i=0;i<objects.size();i++){  //!!! watch out , i++ down there
+       if(shapeID !=objects[i]->get_shapeID()){
+                shapeID=objects[i]->get_shapeID();
+                glBindBuffer(GL_ARRAY_BUFFER, shapes[shapeID]->get_vertexbuffer());
+                glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,0,0);
+                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, shapes[shapeID]->get_elementbuffer());
+        }
+        glUniformMatrix4fv(depthMatrixID, 1, GL_FALSE, &objects[i]->get_ModelMatrix()[0][0]);
+        glDrawElements(GL_TRIANGLES,shapes[shapeID]->get_index_size(),GL_UNSIGNED_SHORT,0);//(void*)0);
+    }
+
+    chunk* shape_ptr;
+    std::vector<GLuint> vertexbuffers;
+    std::vector<GLuint> elementbuffers;
+    size_t buffer_count;
+
+    for(int x=0;x<chunk_sizes[0];x++){
+        for(int y=0;y<chunk_sizes[1];y++){
+            for(int z=0;z<chunk_sizes[2];z++){
+                shape_ptr=chunks[x][y][z]->get_chunk_shape();
+                vertexbuffers=shape_ptr->get_vertexbuffers();
+                if(vertexbuffers.size()>0){
+                    elementbuffers=shape_ptr->get_elementbuffers();
+                    buffer_count=vertexbuffers.size();
+                    glUniformMatrix4fv(depthMatrixID, 1, GL_FALSE, &chunks[x][y][z]->get_ModelMatrix()[0][0]);
+                    for(size_t buffer_number=0;buffer_number<buffer_count;buffer_number++){
+                        glBindBuffer(GL_ARRAY_BUFFER, vertexbuffers[buffer_number]);
+                        glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,0,0);
+                        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementbuffers[buffer_number]);
+                        glDrawElements(GL_TRIANGLES,shape_ptr->get_index_size(buffer_number),GL_UNSIGNED_SHORT,0);//(void*)0);
+                    }
+                }
+            }
+        }
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    /// \brief glViewport
+    //////////////////////////////////////////////////////////////////////////
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glViewport(0,0,windowWidth,windowHeight); // Render on the whole framebuffer, complete from the lower left corner to the upper right
+
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK); // Cull back-facing triangles -> draw only front-facing triangles
+
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, depthTexture);
+    glUniform1i(ShadowMapID, 1);
 
     glm::mat4 ProjectionMatrix = getProjectionMatrix(); //evt. schon vorher multipiziren, nicht erst in shadern...
     glm::mat4 ViewMatrix = getViewMatrix();
     glm::mat4 ModelMatrix;
     glm::vec3 lightPos  = glm::vec3(objects[skycubeID]->get_ModelMatrix() * glm::vec4(-11.5f,22.0f,8.5f,1));
 
+    glm::mat4 biasMatrix(
+        0.5, 0.0, 0.0, 0.0,
+        0.0, 0.5, 0.0, 0.0,
+        0.0, 0.0, 0.5, 0.0,
+        0.5, 0.5, 0.5, 1.0
+    );
+
+    glm::mat4 depthBiasMVP = biasMatrix*depthMVP;
+    glUniformMatrix4fv(DepthBiasID, 1, GL_FALSE, &depthBiasMVP[0][0]);
+
     size_t TextureID    = 100000;
-    size_t shapeID      = 100000;
+    shapeID      = 100000;
     size_t prog         = 100000; //WARNING if first obj uses shader 100000-> Bug !!!
     int    objID        = 100000;
 
@@ -386,7 +789,8 @@ void gl_main::paint()
                 glUniform3f(LightIDs[prog], lightPos.x, lightPos.y, lightPos.z);
                 glUniformMatrix4fv(MatrixIDs[prog], 1, GL_FALSE, &ProjectionMatrix[0][0]);
                 glUniformMatrix4fv(ViewMatrixIDs[prog], 1, GL_FALSE, &ViewMatrix[0][0]);
-                glActiveTexture(GL_TEXTURE0);
+                glUniformMatrix4fv(DepthBiasID, 1, GL_FALSE, &depthBiasMVP[0][0]);
+                //glActiveTexture(GL_TEXTURE0);
 
                 TextureID= 100000; //WARNING if first obj uses shader 100000-> Bug !!!
                 shapeID  = 100000;
@@ -394,6 +798,8 @@ void gl_main::paint()
 
             if(TextureID != objects[i]->get_TextureID()){
                 TextureID=objects[i]->get_TextureID();
+
+                glActiveTexture(GL_TEXTURE0);
                 glBindTexture(GL_TEXTURE_2D, Textures[TextureID]);
                 glUniform1i(TextureSamplerIDs[prog], 0);
             }
@@ -418,14 +824,14 @@ void gl_main::paint()
     }
 
     //draw chunks
-    chunk* shape_ptr;
+    //chunk* shape_ptr;
 
-    std::vector<GLuint> vertexbuffers;
+    //std::vector<GLuint> vertexbuffers;
     std::vector<GLuint> uvbuffers;
     std::vector<GLuint> normalbuffers;
-    std::vector<GLuint> elementbuffers;
+    //std::vector<GLuint> elementbuffers;
 
-    size_t buffer_count;
+    //size_t buffer_count;
 
     for(int x=0;x<chunk_sizes[0];x++){
         for(int y=0;y<chunk_sizes[1];y++){
@@ -483,6 +889,22 @@ void gl_main::paint()
         }
     }
 
+    int w2=windowWidth/2;
+    int h2=windowHeight/2;
+    int width=4;
+    int length=20;
+    glViewport(w2-4,h2-4,8,8);
+    glUseProgram(CrossShader);
+    glBindBuffer(GL_ARRAY_BUFFER, Screenvertices);
+    glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,0,(void*)0);
+
+    glViewport(w2-length/2,h2-width/2,length,width);
+    glDrawArrays(GL_TRIANGLES, 0, 6); // 2*3 indices starting at 0 -> 2 triangles
+    glViewport(w2-width/2,h2-length/2,width,length);
+    glDrawArrays(GL_TRIANGLES, 0, 6); // 2*3 indices starting at 0 -> 2 triangles
+
+
+
 
     // Swap buffers
     glfwPollEvents();
@@ -504,6 +926,7 @@ void gl_main::mainloop()
 
     do{
         measure_speed();
+        actions();
         paint();
     }
     while( glfwGetKey(window, GLFW_KEY_ESCAPE ) != GLFW_PRESS &&
@@ -555,6 +978,15 @@ void gl_main::clean()
         }
     }
     //destruktor wegen new???
+    int b=chunk_sizes[0];
+    int h=chunk_sizes[1];
+    int l=chunk_sizes[2];
+    int bufferCount=b*h*l* 2 ; //vergrossern um mehr platz zu haben, lastet VRAM stark aus (max statt 2 -> 8)
+    //! doesnot  risize atomaticly
+    glDeleteBuffers(bufferCount, &chunk_vertex_buffer_stack[0]);
+    glDeleteBuffers(bufferCount, &chunk_uv_buffer_stack[0]);
+    glDeleteBuffers(bufferCount, &chunk_normal_buffer_stack[0]);
+    glDeleteBuffers(bufferCount, &chunk_element_buffer_stack[0]);
 
     // Close OpenGL window and terminate GLFW
     glfwTerminate();
@@ -581,7 +1013,7 @@ void gl_main::move_chunks()
     float dy=chunk_sizes[1]/2.0;
     float dz=chunk_sizes[2]/2.0;
 
-    bool relode=false;
+    bool relode=true;
 
     if(getCamPos().x-map_pos[0]>8*4){//wenn in pos. xRichtung bewegt
         //int x=map_border[0];
@@ -838,9 +1270,62 @@ void gl_main::move_chunks()
 
 }
 
+short gl_main::getBlockat(int x, int y, int z)
+{
+    x+=chunk_sizes[0]/2.0*16-map_pos[0];
+    y+=chunk_sizes[1]/2.0*16-map_pos[1];
+    z+=chunk_sizes[2]/2.0*16-map_pos[2];
+    return chunks
+            [(x/16+map_border[0])%chunk_sizes[0]]
+            [(y/16+map_border[1])%chunk_sizes[1]]
+            [(z/16+map_border[2])%chunk_sizes[2]]
+            ->get_block(x%16,y%16,z%16);
+}
+
+void gl_main::setBlockat(int x, int y, int z, short mat)
+{
+    x+=chunk_sizes[0]/2.0*16-map_pos[0];
+    y+=chunk_sizes[1]/2.0*16-map_pos[1];
+    z+=chunk_sizes[2]/2.0*16-map_pos[2];
+    return chunks
+            [(x/16+map_border[0])%chunk_sizes[0]]
+            [(y/16+map_border[1])%chunk_sizes[1]]
+            [(z/16+map_border[2])%chunk_sizes[2]]
+            ->change_block(x%16,y%16,z%16,mat);
+}
 
 
+GLuint4back gl_main::get_chunk_buffer()
+{
 
+    if(chunk_vertex_buffer_stack.size() >1){
+        _GLuint4back bufferz;
+        bufferz.i0=chunk_vertex_buffer_stack.back();
+        bufferz.i1=chunk_uv_buffer_stack.back();
+        bufferz.i2=chunk_normal_buffer_stack.back();
+        bufferz.i3=chunk_element_buffer_stack.back();
+
+        chunk_vertex_buffer_stack.pop_back();
+        chunk_uv_buffer_stack.pop_back();
+        chunk_normal_buffer_stack.pop_back();
+        chunk_element_buffer_stack.pop_back();
+
+        return bufferz;
+    }
+    else{
+        printf("ERROR: chunk-buffers empty");
+        return {0,0,0,0};
+    }
+
+}
+
+void gl_main::return_chunk_buffer(GLuint4back bufferz)
+{
+    chunk_vertex_buffer_stack.push_back(bufferz.i0);
+    chunk_uv_buffer_stack.push_back(bufferz.i1);
+    chunk_normal_buffer_stack.push_back(bufferz.i2);
+    chunk_element_buffer_stack.push_back(bufferz.i3);
+}
 
 
 

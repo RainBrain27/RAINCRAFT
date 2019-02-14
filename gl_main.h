@@ -8,11 +8,13 @@
 #include "baseobject.h"
 #include "chunk_obj.h"
 
+typedef struct _GLuint4back{GLuint i0, i1, i2, i3;} GLuint4back;
 
 class gl_main
 {
 public:
     gl_main();
+
     void mainloop();
 
 private:
@@ -21,6 +23,7 @@ private:
     void loadObjects();
     void actions();
     void playercolision();
+    void selectBlock();
     void paint();
     void measure_speed();
     void create_shapes();
@@ -29,15 +32,26 @@ private:
     void move_chunks();
 
 private:
-     GLuint VertexArrayID;
+    GLuint VertexArrayID;
 
-     std::vector<GLuint> programIDs;
-     std::vector<GLint> MatrixIDs;
-     std::vector<GLint> ViewMatrixIDs;
-     std::vector<GLint> ModelMatrixIDs;
-     std::vector<GLint> TextureSamplerIDs;
-     std::vector<GLint> LightIDs;
+    std::vector<GLuint> programIDs;
+    std::vector<GLint> MatrixIDs;
+    std::vector<GLint> ViewMatrixIDs;
+    std::vector<GLint> ModelMatrixIDs;
+    std::vector<GLint> TextureSamplerIDs;
+    std::vector<GLint> LightIDs;
     GLint TextureArraySampler;
+
+
+    GLuint CrossShader;
+    GLuint Screenvertices;
+
+    GLuint depthProgramID;
+    GLint depthMatrixID;
+    GLuint FramebufferName;
+    GLuint depthTexture;
+    GLint ShadowMapID;
+    GLint DepthBiasID;
 
 private:
 
@@ -49,7 +63,7 @@ private:
      //std::vector< chunk_obj* > chunks;
      //int chunk_sizes[3]={18,18,18};
      //chunk_obj* chunks[18][18][18];
-     #define cc 8
+     #define cc 16
      int chunk_sizes[3]={cc,cc,cc};
      int map_border[3]={0,0,0};
      int map_pos[3]={0,0,0};
@@ -63,10 +77,24 @@ private:
 private:
      double lastTime;
      int nbFrames;
+     int windowWidth = 1920;//1024;
+     int windowHeight = 1080;//768;
 
 private:
-     glm::vec3 PlayerSize  = glm::vec3(0.6,1.8,0.8);
-     glm::vec3 PlayerEyePos= glm::vec3(0.3,1.6,0.4);
+     float PlayerSize[3]  = {0.8f,1.8f,0.8f};
+     float PlayerEyePos[3]= {0.4f,1.6f,0.4f};
+     short getBlockat(int x, int y, int z);
+     void setBlockat(int x, int y, int z, short mat);
+
+private:
+     std::vector<GLuint>  chunk_vertex_buffer_stack;
+     std::vector<GLuint>  chunk_uv_buffer_stack;
+     std::vector<GLuint>  chunk_normal_buffer_stack;
+     std::vector<GLuint>  chunk_element_buffer_stack;
+     // vertices,uv,normal,elem
+public:
+     GLuint4back get_chunk_buffer();
+     void return_chunk_buffer(GLuint4back bufferz);
 };
 
 #endif // GL_MAIN_H

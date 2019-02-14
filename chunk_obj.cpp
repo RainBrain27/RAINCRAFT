@@ -4,17 +4,21 @@ chunk_obj::chunk_obj(size_t texture, size_t program, int NewObjID, glm::vec3 pos
                      std::vector<unsigned short> cube_indices,
                      std::vector<glm::vec3> cube_indexed_vertices,
                      std::vector<glm::vec2> cube_indexed_uvs,
-                     std::vector<glm::vec3> cube_indexed_normals
+                     std::vector<glm::vec3> cube_indexed_normals,
+                     gl_main* LINUX
                      )
 
     :baseobject(0, texture,program,NewObjID, pos)
 {
+    chunk_shape.set_gl_main(LINUX);
+
     chunk_shape.clone_alpha_cube(cube_indices,
                                  cube_indexed_vertices,
                                  cube_indexed_uvs,
                                  cube_indexed_normals);
 
     chunk_shape.set_neighbours(shape_neighbour);
+
 
     int b=16;
     for(int x=0;x<b;x++){
@@ -51,13 +55,20 @@ void chunk_obj::generate_chunk()
 
                         //chunk_shape.set_Block_list(x,y,z,  1  ); //PARTY HARD in 30s //DONE
                         if(x==0 or x==15 or z==0 or z==15){
-                            chunk_shape.set_Block_list(x,y,z,  0  );
+                            if(10-std::abs(z-7.5)>y-9 and 10-std::abs(x-7.5)>y-9){
+                                chunk_shape.set_Block_list(x,y,z,  0  );
+                            }
                         }
                         else if((5<x and x<10) and (5<z and z<10)){
-                            chunk_shape.set_Block_list(x,y,z,  -1  );
+                            if(10-std::abs(z-7.5)>y-8 and 10-std::abs(x-7.5)>y-8){
+                                chunk_shape.set_Block_list(x,y,z,  -1  );
+                            }
                         }
                         else{
-                            chunk_shape.set_Block_list(x,y,z,  1  );
+                            if(10-std::abs(z-7.5)>y-8 and 10-std::abs(x-7.5)>y-8){
+                                chunk_shape.set_Block_list(x,y,z,  1  );
+                            }
+
                         }
                     }
                 //}

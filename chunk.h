@@ -7,6 +7,8 @@
 #include <GL/glew.h>
 #include <glm/glm.hpp>
 
+
+class gl_main;
 class chunk //: public shape //16**3 blocke
 {
 public:
@@ -38,6 +40,8 @@ public:
                           std::vector<glm::vec3> cube_indexed_normals);
 
     chunk** neighbours;
+    void set_gl_main(gl_main* nLINUX){LINUX=nLINUX;}
+
 private:
 
     void init_buffers();
@@ -71,6 +75,7 @@ private:
     std::vector<GLuint> uvbuffers;
     std::vector<GLuint> normalbuffers;
     std::vector<GLuint> elementbuffers;
+    gl_main* LINUX;
 
     void add_buffer();
     void remove_buffer();
