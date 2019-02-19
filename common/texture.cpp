@@ -6,125 +6,6 @@
 
 #include <GLFW/glfw3.h>
 
-#include <vector>
-GLuint loadBMP_array(std::vector<const char *> imagepaths){
-    printf("Reading imagepaths\n");
-
-    // Data read from the header of the BMP file
-
-    unsigned int simageSize=3;
-    unsigned int swidth=0, sheight=0;
-    // Actual RGB data
-    std::vector<unsigned char> data;
-    unsigned char * buffer;
-
-    for(int i=0;i<imagepaths.size();i++){
-        unsigned char header[54];
-        unsigned int dataPos;
-        unsigned int imageSize=0;
-        unsigned int width=0, height=0;
-        // Open the file
-        FILE * file = fopen(imagepaths[i],"rb");
-        if (!file){
-            printf("%s could not be opened. Are you in the right directory ? Don't forget to read the FAQ !\n", imagepaths[i]);
-            getchar();
-            return 0;
-        }
-
-        // Read the header, i.e. the 54 first bytes
-
-        // If less than 54 bytes are read, problem
-        if ( fread(header, 1, 54, file)!=54 ){
-            printf("Not a correct BMP file\n");
-            fclose(file);
-            return 0;
-        }
-        // A BMP files always begins with "BM"
-        if ( header[0]!='B' || header[1]!='M' ){
-            printf("Not a correct BMP file\n");
-            fclose(file);
-            return 0;
-        }
-        // Make sure this is a 24bpp file
-        if ( *(int*)&(header[0x1E])!=0  )         {printf("Not a correct BMP file\n");    fclose(file); return 0;}
-        if ( *(int*)&(header[0x1C])!=24 )         {printf("Not a correct BMP file\n");    fclose(file); return 0;}
-
-        // Read the information about the image
-        dataPos    = *(int*)&(header[0x0A]);
-        imageSize  = *(int*)&(header[0x22]);
-        width      = *(int*)&(header[0x12]);
-        height     = *(int*)&(header[0x16]);
-
-        // Some BMP files are misformatted, guess missing information
-        if (imageSize==0)    imageSize=width*height*3; // 3 : one byte for each Red, Green and Blue component
-        if (dataPos==0)      dataPos=54; // The BMP header is done that way
-
-        // Create a buffer
-
-        if(simageSize==3){
-            simageSize=imageSize;
-            swidth=width;
-            sheight=height;
-        }
-        else if (simageSize!=imageSize or swidth!=width or sheight!=height){
-            printf("inconstant BMP files\n");
-            fclose (file);
-            return 0;
-        }
-
-        buffer = new unsigned char [imageSize];
-
-        // Read the actual data from the file into the buffer
-        fread(buffer,1,imageSize,file);
-        for(int i=0;i<imageSize;i++){
-            data.push_back(buffer[i]);
-        }
-        delete [] buffer;
-
-        // Everything is in memory now, the file can be closed.
-        fclose (file);
-    }
-
-    //////////////////////////////////////////////////////////////////////////
-
-
-    GLuint textureArrayID;
-    glGenTextures(1, &textureArrayID);
-    glBindTexture(GL_TEXTURE_2D_ARRAY, textureArrayID);
-    // Allocate the storage.
-    //glTexStorage3D(GL_TEXTURE_2D_ARRAY, 1, GL_RGB8, swidth, sheight, 1);//FIX
-
-    // Upload pixel data.
-    // The first 0 refers to the mipmap level (level 0, since there's only 1)
-    // The following 2 zeroes refers to the x and y offsets in case you only want to specify a subrectangle.
-    // The final 0 refers to the layer index offset (we start from index 0 and have 2 levels).
-    // Altogether you can specify a 3D box subset of the overall texture, but only one mip level at a time.
-    glTexImage3D(GL_TEXTURE_2D_ARRAY,
-                 0,
-                 GL_RGB,
-                 swidth,
-                 sheight,
-                 imagepaths.size(),
-                 0,
-                 GL_BGR,
-                 GL_UNSIGNED_BYTE,
-                 &data[0]);
-
-    // OpenGL has now copied the data. Free our own version
-
-
-
-    glTexParameteri(GL_TEXTURE_2D_ARRAY,GL_TEXTURE_MIN_FILTER,GL_NEAREST_MIPMAP_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D_ARRAY,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D_ARRAY,GL_TEXTURE_WRAP_S,GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D_ARRAY,GL_TEXTURE_WRAP_T,GL_REPEAT);
-
-    glGenerateMipmap(GL_TEXTURE_2D_ARRAY);
-
-    //https://www.khronos.org/opengl/wiki/Array_Texture
-    // Return the ID of the texture we just created
-    return textureArrayID;
-}
 
 GLuint loadBMP_custom(const char * imagepath){
 
@@ -150,19 +31,19 @@ GLuint loadBMP_custom(const char * imagepath){
 
 	// If less than 54 bytes are read, problem
 	if ( fread(header, 1, 54, file)!=54 ){ 
-        printf("Not a correct BMP file1\n");
+		printf("Not a correct BMP file\n");
 		fclose(file);
 		return 0;
 	}
 	// A BMP files always begins with "BM"
 	if ( header[0]!='B' || header[1]!='M' ){
-        printf("Not a correct BMP file2\n");
+		printf("Not a correct BMP file\n");
 		fclose(file);
 		return 0;
 	}
 	// Make sure this is a 24bpp file
-    if ( *(int*)&(header[0x1E])!=0  )         {printf("Not a correct BMP file3\n");    fclose(file); return 0;}
-    if ( *(int*)&(header[0x1C])!=24 )         {printf("Not a correct BMP file4\n");    fclose(file); return 0;}
+	if ( *(int*)&(header[0x1E])!=0  )         {printf("Not a correct BMP file\n");    fclose(file); return 0;}
+	if ( *(int*)&(header[0x1C])!=24 )         {printf("Not a correct BMP file\n");    fclose(file); return 0;}
 
 	// Read the information about the image
 	dataPos    = *(int*)&(header[0x0A]);
@@ -192,6 +73,7 @@ GLuint loadBMP_custom(const char * imagepath){
 
 	// Give the image to OpenGL
 	glTexImage2D(GL_TEXTURE_2D, 0,GL_RGB, width, height, 0, GL_BGR, GL_UNSIGNED_BYTE, data);
+
 	// OpenGL has now copied the data. Free our own version
 	delete [] data;
 
@@ -211,8 +93,6 @@ GLuint loadBMP_custom(const char * imagepath){
 	// Return the ID of the texture we just created
 	return textureID;
 }
-
-
 
 // Since GLFW 3, glfwLoadTexture2D() has been removed. You have to use another texture loading library, 
 // or do it yourself (just like loadBMP_custom and loadDDS)
@@ -318,7 +198,9 @@ GLuint loadDDS(const char * imagepath,bool nearest){
 	for (unsigned int level = 0; level < mipMapCount && (width || height); ++level) 
 	{ 
 		unsigned int size = ((width+3)/4)*((height+3)/4)*blockSize; 
-        glCompressedTexImage2D(GL_TEXTURE_2D, level, format, width, height, 0, size, buffer + offset);
+		glCompressedTexImage2D(GL_TEXTURE_2D, level, format, width, height,  
+			0, size, buffer + offset); 
+	 
 		offset += size; 
 		width  /= 2; 
 		height /= 2; 

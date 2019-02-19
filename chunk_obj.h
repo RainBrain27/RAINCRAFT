@@ -18,7 +18,6 @@ public:
               gl_main* LINUX);
     chunk* get_chunk_shape(){return &chunk_shape;}
     void change_block(int x,int y,int z, short ID);
-    short get_block(int x,int y,int z){return Block_list[x][y][z];}
 
     void refresh_chunk();
 

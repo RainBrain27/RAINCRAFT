@@ -23,10 +23,7 @@ void main(){
 	float LightPower = 25000000.0f;
 	
 	// Material properties
-	
-	
 	vec3 MaterialDiffuseColor = texture( myTextureSampler, UV ).rgb;
-	float a=texture( myTextureSampler, UV ).a;
 	vec3 MaterialAmbientColor = vec3(0.2,0.2,0.2) * MaterialDiffuseColor;
 	vec3 MaterialSpecularColor = vec3(0.1,0.1,0.1);
 
@@ -62,6 +59,5 @@ void main(){
 		// Specular : reflective highlight, like a mirror
 		MaterialSpecularColor * LightColor * LightPower * pow(cosAlpha,5) / (distance*distance);
 
-	//color.a = 1.00;
-	color.a=a;
+	color.a = 1.00;
 }

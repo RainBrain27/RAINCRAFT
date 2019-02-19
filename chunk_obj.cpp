@@ -39,17 +39,18 @@ chunk_obj::chunk_obj(size_t texture, size_t program, int NewObjID, glm::vec3 pos
 void chunk_obj::generate_chunk()
 {
     // gibt dem chunk den Inhalt
-    short ID=0;
+    short ID=1;
     int b=16;
     for(int x=0;x<b;x++){
         for(int y=0;y<b;y++){
             for(int z=0;z<b;z++){
                 //if(y<4){
-                    //if( (( (x-8)*(x-8)+(z-8)*(z-8) )*0.03f+(y))<4 ){
+                    if( (( (x-8)*(x-8)+(z-8)*(z-8) )*0.03f+(y))<4 ){
                     //if((x-8)*(x-8)*(z-8)<20){
                     //if(x+y+z==8){
                     //if((x+y+z)%2==0){
                     //if(((x-7.5)*(x-7.5)*(z-7.5)*(z-7.5)*(y-7.5)*(y-7.5)<20)){
+<<<<<<< HEAD
                     if(y>=10){
                     //if(false){
 
@@ -70,6 +71,9 @@ void chunk_obj::generate_chunk()
                             }
 
                         }
+=======
+                        chunk_shape.set_Block_list(x,y,z,ID);
+>>>>>>> parent of 9cc1eb9... mehrere texturen in chunks
                     }
                 //}
             }
