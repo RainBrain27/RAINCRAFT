@@ -206,6 +206,7 @@ void chunk::write_quad2(int x, int y, int z, int side, short space)
     //size_t buffer_number = space/max_buffer_size;
     short buffer_space = space%max_buffer_size;
 
+<<<<<<< HEAD
     for(size_t i=0;i<4;i++){
         new_vertices[new_size*4+i]=(cube_side_vertices[side][i]+pos);
         new_uvs[new_size*4+i]=(glm::vec3(cube_side_uvs[side][i],Block_list[x][y][z]));
