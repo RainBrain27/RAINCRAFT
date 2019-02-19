@@ -8,13 +8,11 @@
 #include "baseobject.h"
 #include "chunk_obj.h"
 
-typedef struct _GLuint4back{GLuint i0, i1, i2, i3;} GLuint4back;
 
 class gl_main
 {
 public:
     gl_main();
-
     void mainloop();
 
 private:
@@ -86,12 +84,6 @@ private:
      short getBlockat(int x, int y, int z);
      void setBlockat(int x, int y, int z, short mat);
 
-private:
-     std::vector<GLuint>  chunk_vertex_buffer_stack;
-     std::vector<GLuint>  chunk_uv_buffer_stack;
-     std::vector<GLuint>  chunk_normal_buffer_stack;
-     std::vector<GLuint>  chunk_element_buffer_stack;
-     // vertices,uv,normal,elem
 public:
      GLuint4back get_chunk_buffer();
      void return_chunk_buffer(GLuint4back bufferz);

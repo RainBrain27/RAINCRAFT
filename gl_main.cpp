@@ -253,44 +253,9 @@ void gl_main::loadObjects()
     int h=chunk_sizes[1];
     int l=chunk_sizes[2];
 
-
-
-    int bufferCount=b*h*l* 2 ; //vergrossern um mehr platz zu haben, lastet VRAM stark aus (max statt 2 -> 8)
-    //! doesnot  risize atomatcly in clean()
-    //!
-    int max_buffer_size=16*16*2*6; // ein  achtel der maximalen flachen zur speicheroptimierung
-    int vertex_buffer_size=max_buffer_size*4;//vektoren
-    int element_buffer_size=max_buffer_size*6;//ecken elemente
-    //allocate
-
-    chunk_vertex_buffer_stack.resize(bufferCount);
-    chunk_uv_buffer_stack.resize(bufferCount);
-    chunk_normal_buffer_stack.resize(bufferCount);
-    chunk_element_buffer_stack.resize(bufferCount);
-
-    glGenBuffers(bufferCount, &chunk_vertex_buffer_stack[0]);
-    glGenBuffers(bufferCount, &chunk_uv_buffer_stack[0]);
-    glGenBuffers(bufferCount, &chunk_normal_buffer_stack[0]);
-    glGenBuffers(bufferCount, &chunk_element_buffer_stack[0]);
-
-    for(size_t buffer_i=0;buffer_i<bufferCount;buffer_i++){
-        glBindBuffer(GL_ARRAY_BUFFER, chunk_vertex_buffer_stack[buffer_i]);
-        glBufferData(GL_ARRAY_BUFFER, vertex_buffer_size * sizeof(glm::vec3), 0, GL_DYNAMIC_DRAW);
-
-        glBindBuffer(GL_ARRAY_BUFFER, chunk_uv_buffer_stack[buffer_i]);
-        glBufferData(GL_ARRAY_BUFFER, vertex_buffer_size * sizeof(glm::vec3), 0, GL_DYNAMIC_DRAW);
-
-        glBindBuffer(GL_ARRAY_BUFFER, chunk_normal_buffer_stack[buffer_i]);
-        glBufferData(GL_ARRAY_BUFFER, vertex_buffer_size * sizeof(glm::vec3), 0, GL_DYNAMIC_DRAW);
-
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, chunk_element_buffer_stack[buffer_i]);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, element_buffer_size * sizeof(unsigned short), 0, GL_DYNAMIC_DRAW);
-    }
-
     float d=b/2.0f;
     float dh=h/2.0f;
     float dl=l/2.0f;
-
 
     for(int x=0;x<b;x++){
         printf("%i\n",x);
@@ -551,7 +516,7 @@ void gl_main::playercolision()
 
     //START
 
-//    int x=0;jhv
+//    int x=0;
 //    int y=1.7;
 //    int z=0;
 //    x+=chunk_sizes[0]/2.0*16;
@@ -978,15 +943,6 @@ void gl_main::clean()
         }
     }
     //destruktor wegen new???
-    int b=chunk_sizes[0];
-    int h=chunk_sizes[1];
-    int l=chunk_sizes[2];
-    int bufferCount=b*h*l* 2 ; //vergrossern um mehr platz zu haben, lastet VRAM stark aus (max statt 2 -> 8)
-    //! doesnot  risize atomaticly
-    glDeleteBuffers(bufferCount, &chunk_vertex_buffer_stack[0]);
-    glDeleteBuffers(bufferCount, &chunk_uv_buffer_stack[0]);
-    glDeleteBuffers(bufferCount, &chunk_normal_buffer_stack[0]);
-    glDeleteBuffers(bufferCount, &chunk_element_buffer_stack[0]);
 
     // Close OpenGL window and terminate GLFW
     glfwTerminate();
@@ -1295,37 +1251,9 @@ void gl_main::setBlockat(int x, int y, int z, short mat)
 }
 
 
-GLuint4back gl_main::get_chunk_buffer()
-{
 
-    if(chunk_vertex_buffer_stack.size() >1){
-        _GLuint4back bufferz;
-        bufferz.i0=chunk_vertex_buffer_stack.back();
-        bufferz.i1=chunk_uv_buffer_stack.back();
-        bufferz.i2=chunk_normal_buffer_stack.back();
-        bufferz.i3=chunk_element_buffer_stack.back();
 
-        chunk_vertex_buffer_stack.pop_back();
-        chunk_uv_buffer_stack.pop_back();
-        chunk_normal_buffer_stack.pop_back();
-        chunk_element_buffer_stack.pop_back();
 
-        return bufferz;
-    }
-    else{
-        printf("ERROR: chunk-buffers empty");
-        return {0,0,0,0};
-    }
-
-}
-
-void gl_main::return_chunk_buffer(GLuint4back bufferz)
-{
-    chunk_vertex_buffer_stack.push_back(bufferz.i0);
-    chunk_uv_buffer_stack.push_back(bufferz.i1);
-    chunk_normal_buffer_stack.push_back(bufferz.i2);
-    chunk_element_buffer_stack.push_back(bufferz.i3);
-}
 
 
 
