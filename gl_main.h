@@ -63,7 +63,7 @@ private:
      //std::vector< chunk_obj* > chunks;
      //int chunk_sizes[3]={18,18,18};
      //chunk_obj* chunks[18][18][18];
-     #define cc 16
+     #define cc 6
      int chunk_sizes[3]={cc,cc,cc};
      int map_border[3]={0,0,0};
      int map_pos[3]={0,0,0};

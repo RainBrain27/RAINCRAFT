@@ -74,12 +74,8 @@ void chunk::init_buffers()
 void chunk::fill_buffers()
 {
     int b=16;
-    int buffer_number = free_short/max_buffer_size+1; //anzahl der buffer //auch mit .size() ...
-    if(free_short%max_buffer_size==0){
-        buffer_number-=1;
-    }
-
-    repeat_i(buffer_number){
+    size_t buffer_number = vertexbuffers.size();
+    for(size_t i=0; i<buffer_number; i++){
         remove_buffer();
     }
 
@@ -89,21 +85,21 @@ void chunk::fill_buffers()
     //warum zur hölle das *2 (ohne wird scheinbar nur die Hälfte neu platziert)
     //memset schreibt default immer 8 bit bei -1 FF, zwei -1 wird zu FFFF, funktioniert nur für -1
     /*
-    for(int x=0;x<b;x++){
-        for(int y=0;y<b;y++){
-            for(int z=0;z<b;z++){
-                for(int side=0;side<6;side++){
-                    Quad_list[x][y][z][side]=-1;
-                }
-            }
-        }
-    }
+    for(int x=0;x<b;x++){ for(int y=0;y<b;y++){ for(int z=0;z<b;z++){ for(int side=0;side<6;side++){
+                    Quad_list[x][y][z][side]=-1; } } } }
     */
-    new_vertices.clear(); //fix: wenn es pointer auf glm::vec3 ist kann es speicherprobleme geben
+    new_vertices.clear();
     new_uvs.clear();
     new_normals.clear();
     new_indices.clear();
+    //size=0 -> auf max.größe bringen
 
+    new_size=0; //stellt Anzahl der Elemente im Buffer da(entspricht .size mit pushback-konstrukt)
+    size_t new_max_size=size_t(max_buffer_size);
+    new_vertices.resize(new_max_size*4);
+    new_uvs.resize(new_max_size*4);
+    new_normals.resize(new_max_size*4);
+    new_indices.resize(new_max_size*6);
 
     //blockcheck:
     for(int x=0;x<b;x++){
@@ -122,6 +118,10 @@ void chunk::fill_buffers()
         }
 
     }
+    new_vertices.clear();
+    new_uvs.clear();
+    new_normals.clear();
+    new_indices.clear();
 }
 
 //die -2 funktionen fullen nur listen und schreiben nicht auf die GPU
@@ -150,16 +150,6 @@ void chunk::check_block2(int x, int y, int z)
         {x,0,z},
         {x,b-1,z}
         };
-        /*kann nicht passieren
-        if(Block_list[x][y][z]==-1){
-            remove_quad(x,y,z,0);
-            remove_quad(x,y,z,1);
-            remove_quad(x,y,z,2);
-            remove_quad(x,y,z,3);
-            remove_quad(x,y,z,4);
-            remove_quad(x,y,z,5);
-        }*/
-        //else{
         if(not(Block_list[x][y][z]==-1)){
             for(int i=0;i<6;i++){
                 if(dec[i]){ //liegt nicht am entsprechendem rand
@@ -204,6 +194,8 @@ void chunk::add_quad2(int x, int y, int z, int side)
         }
     }
     else{printf("Seltsamer add_quad2-Aufruf");}
+
+
 }
 
 void chunk::write_quad2(int x, int y, int z, int side, short space)
@@ -214,29 +206,15 @@ void chunk::write_quad2(int x, int y, int z, int side, short space)
     //size_t buffer_number = space/max_buffer_size;
     short buffer_space = space%max_buffer_size;
 
-    repeat_i(4){
-        new_vertices.push_back(cube_side_vertices[side][i]+pos);
-        new_uvs.push_back(glm::vec3(cube_side_uvs[side][i],Block_list[x][y][z]));
-        new_normals.push_back(cube_side_normals[side][i]);
+    for(size_t i=0;i<4;i++){
+        new_vertices[new_size*4+i]=(cube_side_vertices[side][i]+pos);
+        new_uvs[new_size*4+i]=(glm::vec3(cube_side_uvs[side][i],Block_list[x][y][z]));
+        new_normals[new_size*4+i]=(cube_side_normals[side][i]);
     }
-    repeat_i(6){
-        new_indices.push_back(cube_side_indices[side][i]+buffer_space*4); // nicht korrekt, funktioniert nur wenn nachher unterteilt
-        // gegebenfalls zu aufteilung der Buffer
+    for(size_t i=0;i<6;i++){
+        new_indices[new_size*6+i]=(cube_side_indices[side][i]+buffer_space*4); // nicht korrekt, funktioniert nur wenn nachher unterteilt
     }
-
-    /*
-    glBindBuffer(GL_ARRAY_BUFFER, vertexbuffers[buffer_number]);
-    glBufferSubData(GL_ARRAY_BUFFER,buffer_space*4*sizeof(glm::vec3),4*sizeof(glm::vec3),&temp_v[0]);
-
-    glBindBuffer(GL_ARRAY_BUFFER, uvbuffers[buffer_number]);
-    glBufferSubData(GL_ARRAY_BUFFER,buffer_space*4*sizeof(glm::vec2),4*sizeof(glm::vec2),cube_side_uvs[side]);
-
-    glBindBuffer(GL_ARRAY_BUFFER, normalbuffers[buffer_number]);
-    glBufferSubData(GL_ARRAY_BUFFER,buffer_space*4*sizeof(glm::vec3),4*sizeof(glm::vec3),cube_side_normals[side]);
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementbuffers[buffer_number]);
-    glBufferSubData(GL_ELEMENT_ARRAY_BUFFER,buffer_space*6*sizeof(unsigned short),6*sizeof(unsigned short),&temp_e[0]);
-    */
+    new_size+=1;
 }
 
 short chunk::get_space2()
@@ -245,6 +223,7 @@ short chunk::get_space2()
     if(free_short%max_buffer_size==0){
         if(free_short>0){paste_in_buffer(free_short/max_buffer_size-1);}
         add_buffer();
+        new_size=0;
     }
     free_short+=1;
     return space;
