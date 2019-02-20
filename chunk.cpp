@@ -73,12 +73,14 @@ void chunk::init_buffers()
 
 void chunk::fill_buffers()
 {
+    //LINUX->printDeltaTime("BEGIN");
+
     int b=16;
     size_t buffer_number = vertexbuffers.size();
     for(size_t i=0; i<buffer_number; i++){
         remove_buffer();
     }
-
+    //LINUX->printDeltaTime("Removed Buffer");
     free_short=0;
     //DANGER| DONT'COPY
     memset(Quad_list,-1,16*16*16*6*2); // fix: bei veranderung quad_list //notwendig???
@@ -88,18 +90,22 @@ void chunk::fill_buffers()
     for(int x=0;x<b;x++){ for(int y=0;y<b;y++){ for(int z=0;z<b;z++){ for(int side=0;side<6;side++){
                     Quad_list[x][y][z][side]=-1; } } } }
     */
+    //LINUX->printDeltaTime("MEMSET!->");
     new_vertices.clear();
     new_uvs.clear();
     new_normals.clear();
     new_indices.clear();
     //size=0 -> auf max.größe bringen
 
+    //LINUX->printDeltaTime("CLEAR");
     new_size=0; //stellt Anzahl der Elemente im Buffer da(entspricht .size mit pushback-konstrukt)
     size_t new_max_size=size_t(max_buffer_size);
     new_vertices.resize(new_max_size*4);
     new_uvs.resize(new_max_size*4);
     new_normals.resize(new_max_size*4);
     new_indices.resize(new_max_size*6);
+
+    //LINUX->printDeltaTime("RESIZE");
 
     //blockcheck:
     for(int x=0;x<b;x++){
@@ -109,6 +115,7 @@ void chunk::fill_buffers()
             }
         }
     }
+    //LINUX->printDeltaTime("16^^3 Schleife");
     if(new_indices.size()>0){
         if(free_short%max_buffer_size==0){
             paste_in_buffer(free_short/max_buffer_size-1);
@@ -122,6 +129,7 @@ void chunk::fill_buffers()
     new_uvs.clear();
     new_normals.clear();
     new_indices.clear();
+    //LINUX->printDeltaTime("END");
 }
 
 //die -2 funktionen fullen nur listen und schreiben nicht auf die GPU
@@ -200,22 +208,16 @@ void chunk::add_quad2(int x, int y, int z, int side)
 
 void chunk::write_quad2(int x, int y, int z, int side, short space)
 {
-    glm::vec3 pos(x-7.5,y-7.5,z-7.5);
+    //glm::vec3 pos(x-7.5,y-7.5,z-7.5);
+    glm::vec3 pos(x+0.5,y+0.5,z+0.5);
 
     //size_t buffer_number = space/max_buffer_size;
     short buffer_space = space%max_buffer_size;
 
-<<<<<<< HEAD
     for(size_t i=0;i<4;i++){
         new_vertices[new_size*4+i]=(cube_side_vertices[side][i]+pos);
         new_uvs[new_size*4+i]=(glm::vec3(cube_side_uvs[side][i],Block_list[x][y][z]));
         new_normals[new_size*4+i]=(cube_side_normals[side][i]);
-=======
-    repeat_i(4){
-        new_vertices.push_back(cube_side_vertices[side][i]+pos);
-        new_uvs.push_back(cube_side_uvs[side][i]);
-        new_normals.push_back(cube_side_normals[side][i]);
->>>>>>> parent of 9cc1eb9... mehrere texturen in chunks
     }
     for(size_t i=0;i<6;i++){
         new_indices[new_size*6+i]=(cube_side_indices[side][i]+buffer_space*4); // nicht korrekt, funktioniert nur wenn nachher unterteilt
@@ -245,7 +247,7 @@ void chunk::paste_in_buffer(size_t buffer_number)
     glBufferSubData(GL_ARRAY_BUFFER,0,size*4*sizeof(glm::vec3),&new_vertices[0]);
 
     glBindBuffer(GL_ARRAY_BUFFER, uvbuffers[buffer_number]);
-    glBufferSubData(GL_ARRAY_BUFFER,0,size*4*sizeof(glm::vec2),&new_uvs[0]);
+    glBufferSubData(GL_ARRAY_BUFFER,0,size*4*sizeof(glm::vec3),&new_uvs[0]);
 
     glBindBuffer(GL_ARRAY_BUFFER, normalbuffers[buffer_number]);
     glBufferSubData(GL_ARRAY_BUFFER,0,size*4*sizeof(glm::vec3),&new_normals[0]);
@@ -293,22 +295,24 @@ void chunk::remove_quad(int x, int y, int z, int side)
 
 void chunk::write_quad(int x, int y, int z, int side, short space)
 {
-
-    glm::vec3 pos(x-7.5,y-7.5,z-7.5);
+    glm::vec3 pos(x+0.5,y+0.5,z+0.5);
+    //glm::vec3 pos(x-7.5,y-7.5,z-7.5);
 
     size_t buffer_number = space/max_buffer_size;
     short buffer_space = space%max_buffer_size;
 
     std::vector<glm::vec3> temp_v;
+    std::vector<glm::vec3> temp_uv;
     repeat_i(4){
         temp_v.push_back(cube_side_vertices[side][i]+pos);
+        temp_uv.push_back(glm::vec3(cube_side_uvs[side][i],Block_list[x][y][z]));
     }
 
     glBindBuffer(GL_ARRAY_BUFFER, vertexbuffers[buffer_number]);
     glBufferSubData(GL_ARRAY_BUFFER,buffer_space*4*sizeof(glm::vec3),4*sizeof(glm::vec3),&temp_v[0]);
 
     glBindBuffer(GL_ARRAY_BUFFER, uvbuffers[buffer_number]);
-    glBufferSubData(GL_ARRAY_BUFFER,buffer_space*4*sizeof(glm::vec2),4*sizeof(glm::vec2),cube_side_uvs[side]);
+    glBufferSubData(GL_ARRAY_BUFFER,buffer_space*4*sizeof(glm::vec3),4*sizeof(glm::vec3),&temp_uv[0]);
 
     glBindBuffer(GL_ARRAY_BUFFER, normalbuffers[buffer_number]);
     glBufferSubData(GL_ARRAY_BUFFER,buffer_space*4*sizeof(glm::vec3),4*sizeof(glm::vec3),cube_side_normals[side]);
@@ -460,12 +464,19 @@ void chunk::add_buffer()
     int vertex_buffer_size=max_buffer_size*4;//vektoren
     int element_buffer_size=max_buffer_size*6;//ecken elemente
 
-    size_t buffer_number = vertexbuffers.size();
-    //size changes here
+    /*
+    _GLuint4back buffers = LINUX->get_chunk_buffer();
+    vertexbuffers.push_back(buffers.i0);
+    uvbuffers.push_back(buffers.i1);
+    normalbuffers.push_back(buffers.i2);
+    elementbuffers.push_back(buffers.i3);
+    */
     vertexbuffers.push_back(0);
     uvbuffers.push_back(0);
     normalbuffers.push_back(0);
     elementbuffers.push_back(0);
+
+    size_t buffer_number = vertexbuffers.size()-1;
 
     glGenBuffers(1, &vertexbuffers[buffer_number]);
     glBindBuffer(GL_ARRAY_BUFFER, vertexbuffers[buffer_number]);
@@ -473,7 +484,7 @@ void chunk::add_buffer()
 
     glGenBuffers(1, &uvbuffers[buffer_number]);
     glBindBuffer(GL_ARRAY_BUFFER, uvbuffers[buffer_number]);
-    glBufferData(GL_ARRAY_BUFFER, vertex_buffer_size * sizeof(glm::vec2), 0, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, vertex_buffer_size * sizeof(glm::vec3), 0, GL_STATIC_DRAW);
 
     glGenBuffers(1, &normalbuffers[buffer_number]);
     glBindBuffer(GL_ARRAY_BUFFER, normalbuffers[buffer_number]);
@@ -489,6 +500,8 @@ void chunk::remove_buffer()
 {
     size_t buffer_number = vertexbuffers.size()-1;
     if(buffer_number>=0){
+        //LINUX->return_chunk_buffer({vertexbuffers.back(),uvbuffers.back(),normalbuffers.back(),elementbuffers.back()});
+
         glDeleteBuffers(1, &vertexbuffers[buffer_number]);
         glDeleteBuffers(1, &uvbuffers[buffer_number]);
         glDeleteBuffers(1, &normalbuffers[buffer_number]);
