@@ -73,12 +73,14 @@ void chunk::init_buffers()
 
 void chunk::fill_buffers()
 {
+    //LINUX->printDeltaTime("BEGIN");
+
     int b=16;
     size_t buffer_number = vertexbuffers.size();
     for(size_t i=0; i<buffer_number; i++){
         remove_buffer();
     }
-
+    //LINUX->printDeltaTime("Removed Buffer");
     free_short=0;
     //DANGER| DONT'COPY
     memset(Quad_list,-1,16*16*16*6*2); // fix: bei veranderung quad_list //notwendig???
@@ -88,18 +90,22 @@ void chunk::fill_buffers()
     for(int x=0;x<b;x++){ for(int y=0;y<b;y++){ for(int z=0;z<b;z++){ for(int side=0;side<6;side++){
                     Quad_list[x][y][z][side]=-1; } } } }
     */
+    //LINUX->printDeltaTime("MEMSET!->");
     new_vertices.clear();
     new_uvs.clear();
     new_normals.clear();
     new_indices.clear();
     //size=0 -> auf max.größe bringen
 
+    //LINUX->printDeltaTime("CLEAR");
     new_size=0; //stellt Anzahl der Elemente im Buffer da(entspricht .size mit pushback-konstrukt)
     size_t new_max_size=size_t(max_buffer_size);
     new_vertices.resize(new_max_size*4);
     new_uvs.resize(new_max_size*4);
     new_normals.resize(new_max_size*4);
     new_indices.resize(new_max_size*6);
+
+    //LINUX->printDeltaTime("RESIZE");
 
     //blockcheck:
     for(int x=0;x<b;x++){
@@ -109,6 +115,7 @@ void chunk::fill_buffers()
             }
         }
     }
+    //LINUX->printDeltaTime("16^^3 Schleife");
     if(new_indices.size()>0){
         if(free_short%max_buffer_size==0){
             paste_in_buffer(free_short/max_buffer_size-1);
@@ -122,6 +129,7 @@ void chunk::fill_buffers()
     new_uvs.clear();
     new_normals.clear();
     new_indices.clear();
+    //LINUX->printDeltaTime("END");
 }
 
 //die -2 funktionen fullen nur listen und schreiben nicht auf die GPU
@@ -453,18 +461,23 @@ void chunk::init_lists()
 
 void chunk::add_buffer()
 {
-    //int vertex_buffer_size=max_buffer_size*4;//vektoren
-    //int element_buffer_size=max_buffer_size*6;//ecken elemente
+    int vertex_buffer_size=max_buffer_size*4;//vektoren
+    int element_buffer_size=max_buffer_size*6;//ecken elemente
 
-    //size_t buffer_number = vertexbuffers.size();
-    //size changes here
-
+    /*
     _GLuint4back buffers = LINUX->get_chunk_buffer();
     vertexbuffers.push_back(buffers.i0);
     uvbuffers.push_back(buffers.i1);
     normalbuffers.push_back(buffers.i2);
     elementbuffers.push_back(buffers.i3);
-    /*
+    */
+    vertexbuffers.push_back(0);
+    uvbuffers.push_back(0);
+    normalbuffers.push_back(0);
+    elementbuffers.push_back(0);
+
+    size_t buffer_number = vertexbuffers.size()-1;
+
     glGenBuffers(1, &vertexbuffers[buffer_number]);
     glBindBuffer(GL_ARRAY_BUFFER, vertexbuffers[buffer_number]);
     glBufferData(GL_ARRAY_BUFFER, vertex_buffer_size * sizeof(glm::vec3), 0, GL_STATIC_DRAW);
@@ -480,20 +493,20 @@ void chunk::add_buffer()
     glGenBuffers(1, &elementbuffers[buffer_number]);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementbuffers[buffer_number]);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, element_buffer_size * sizeof(unsigned short), 0, GL_STATIC_DRAW);
-     */
+
 }
 
 void chunk::remove_buffer()
 {
-    size_t buffer_number = vertexbuffers.size();
-    if(buffer_number>0){
-        LINUX->return_chunk_buffer({
-                                       vertexbuffers.back(),
-                                       uvbuffers.back(),
-                                       normalbuffers.back(),
-                                       elementbuffers.back()
+    size_t buffer_number = vertexbuffers.size()-1;
+    if(buffer_number>=0){
+        //LINUX->return_chunk_buffer({vertexbuffers.back(),uvbuffers.back(),normalbuffers.back(),elementbuffers.back()});
 
-                                   });
+        glDeleteBuffers(1, &vertexbuffers[buffer_number]);
+        glDeleteBuffers(1, &uvbuffers[buffer_number]);
+        glDeleteBuffers(1, &normalbuffers[buffer_number]);
+        glDeleteBuffers(1, &elementbuffers[buffer_number]);
+
         vertexbuffers.pop_back();
         uvbuffers.pop_back();
         normalbuffers.pop_back();

@@ -14,8 +14,11 @@ class gl_main
 {
 public:
     gl_main();
-
     void mainloop();
+
+public:
+    void printDeltaTime(const char * spez);
+    double lastDeltaTime=0;
 
 private:
     void initialize_libs();
@@ -86,15 +89,18 @@ private:
      short getBlockat(int x, int y, int z);
      void setBlockat(int x, int y, int z, short mat);
 
+/*
 private:
      std::vector<GLuint>  chunk_vertex_buffer_stack;
      std::vector<GLuint>  chunk_uv_buffer_stack;
      std::vector<GLuint>  chunk_normal_buffer_stack;
      std::vector<GLuint>  chunk_element_buffer_stack;
      // vertices,uv,normal,elem
+
 public:
      GLuint4back get_chunk_buffer();
      void return_chunk_buffer(GLuint4back bufferz);
+     */
 };
 
 #endif // GL_MAIN_H

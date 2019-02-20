@@ -254,7 +254,7 @@ void gl_main::loadObjects()
     int l=chunk_sizes[2];
 
 
-
+    /*
     int bufferCount=b*h*l* 2 ; //vergrossern um mehr platz zu haben, lastet VRAM stark aus (max statt 2 -> 8)
     //! doesnot  risize atomatcly in clean()
     //!
@@ -286,6 +286,7 @@ void gl_main::loadObjects()
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, chunk_element_buffer_stack[buffer_i]);
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, element_buffer_size * sizeof(unsigned short), 0, GL_DYNAMIC_DRAW);
     }
+    */
 
     float d=b/2.0f;
     float dh=h/2.0f;
@@ -671,6 +672,13 @@ void gl_main::selectBlock()
 void gl_main::paint()
 {
 
+
+    size_t shapeID      = 100000;
+    chunk* shape_ptr;
+    std::vector<GLuint> vertexbuffers;
+    std::vector<GLuint> elementbuffers;
+    size_t buffer_count;
+    /*
     // Render to our framebuffer
     glBindFramebuffer(GL_FRAMEBUFFER, FramebufferName);
     glViewport(0,0,1024,1024); // Render on the whole framebuffer, complete from the lower left corner to the upper right
@@ -705,7 +713,7 @@ void gl_main::paint()
     // in the "MVP" uniform
     glUniformMatrix4fv(depthMatrixID, 1, GL_FALSE, &depthMVP[0][0]);
 
-    size_t shapeID      = 100000;
+
     for(size_t i=0;i<objects.size();i++){  //!!! watch out , i++ down there
        if(shapeID !=objects[i]->get_shapeID()){
                 shapeID=objects[i]->get_shapeID();
@@ -716,11 +724,6 @@ void gl_main::paint()
         glUniformMatrix4fv(depthMatrixID, 1, GL_FALSE, &objects[i]->get_ModelMatrix()[0][0]);
         glDrawElements(GL_TRIANGLES,shapes[shapeID]->get_index_size(),GL_UNSIGNED_SHORT,0);//(void*)0);
     }
-
-    chunk* shape_ptr;
-    std::vector<GLuint> vertexbuffers;
-    std::vector<GLuint> elementbuffers;
-    size_t buffer_count;
 
     for(int x=0;x<chunk_sizes[0];x++){
         for(int y=0;y<chunk_sizes[1];y++){
@@ -741,6 +744,7 @@ void gl_main::paint()
             }
         }
     }
+    */
 
     //////////////////////////////////////////////////////////////////////////
     /// \brief glViewport
@@ -770,7 +774,10 @@ void gl_main::paint()
         0.5, 0.5, 0.5, 1.0
     );
 
-    glm::mat4 depthBiasMVP = biasMatrix*depthMVP;
+    glm::mat4 depthBiasMVP; // = biasMatrix*depthMVP;
+    ///////////
+    /// \brief _Shadow - bug
+    //////////
     glUniformMatrix4fv(DepthBiasID, 1, GL_FALSE, &depthBiasMVP[0][0]);
 
     size_t TextureID    = 100000;
@@ -939,6 +946,19 @@ void gl_main::mainloop()
     clean();
 }
 
+void gl_main::printDeltaTime(const char *spez)
+{
+    static int max_prints=2000;
+
+    if(max_prints>0){
+        double currentTime = glfwGetTime();
+        printf("%s dTime = %f\n",spez, currentTime - lastDeltaTime);
+        lastDeltaTime=currentTime;
+        max_prints-=1;
+    }
+
+}
+
 void gl_main::measure_speed()
 {
     // Measure speed
@@ -977,6 +997,7 @@ void gl_main::clean()
             }
         }
     }
+    /*
     //destruktor wegen new???
     int b=chunk_sizes[0];
     int h=chunk_sizes[1];
@@ -987,6 +1008,7 @@ void gl_main::clean()
     glDeleteBuffers(bufferCount, &chunk_uv_buffer_stack[0]);
     glDeleteBuffers(bufferCount, &chunk_normal_buffer_stack[0]);
     glDeleteBuffers(bufferCount, &chunk_element_buffer_stack[0]);
+    */
 
     // Close OpenGL window and terminate GLFW
     glfwTerminate();
@@ -1294,7 +1316,7 @@ void gl_main::setBlockat(int x, int y, int z, short mat)
             ->change_block(x%16,y%16,z%16,mat);
 }
 
-
+/*
 GLuint4back gl_main::get_chunk_buffer()
 {
 
@@ -1326,6 +1348,7 @@ void gl_main::return_chunk_buffer(GLuint4back bufferz)
     chunk_normal_buffer_stack.push_back(bufferz.i2);
     chunk_element_buffer_stack.push_back(bufferz.i3);
 }
+*/
 
 
 
